@@ -1,0 +1,143 @@
+# Project Requirements - Latest Versions (2025-11-21)
+# Python 3.12+ required
+
+# ============================================================================
+# DATABASE & STORAGE
+# ============================================================================
+
+# PostgreSQL async driver (latest stable)
+asyncpg==0.30.0
+
+# PostgreSQL sync driver
+psycopg[binary]>=3.1.0
+
+# ORM framework
+sqlalchemy>=2.0.0
+
+# Neo4j Python driver (latest)
+neo4j>=6.0.0
+
+# Redis client (last version supporting Python 3.12)
+redis>=5.0.0
+
+# Qdrant vector database client (latest)
+qdrant-client>=1.16.0
+
+# Supabase Python client
+supabase>=2.0.0
+
+# ============================================================================
+# MACHINE LEARNING & ROUTING
+# ============================================================================
+
+# MLX framework (Apple Silicon optimized)
+mlx>=0.0.0
+
+# MLX language models
+mlx-lm>=0.0.0
+
+# OpenAI API client (latest)
+openai>=1.0.0
+
+# Hugging Face transformers
+transformers>=4.40.0
+
+# ============================================================================
+# WEB & API
+# ============================================================================
+
+# FastAPI web framework (latest)
+fastapi>=0.121.3
+
+# ASGI server
+uvicorn>=0.27.0
+
+# Data validation
+pydantic>=2.0.0
+
+# Settings management
+pydantic-settings>=2.0.0
+
+# FastMCP - Modern MCP server framework (2.13+)
+fastmcp>=2.13.0
+
+# GraphQL client for bifrost communication
+gql[aiohttp]>=3.0.0
+
+# ============================================================================
+# UTILITIES & TOOLS
+# ============================================================================
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# YAML parsing
+pyyaml>=6.0.0
+
+# HTTP client (sync)
+requests>=2.31.0
+
+# HTTP client (async)
+httpx>=0.25.0
+
+# Voyage AI - Embeddings API client
+voyage-ai>=0.2.0
+
+# ============================================================================
+# TESTING
+# ============================================================================
+
+# Testing framework
+pytest>=7.4.0
+
+# Async test support
+pytest-asyncio>=0.23.0
+
+# Code coverage
+pytest-cov>=4.1.0
+
+# ============================================================================
+# DEVELOPMENT & QUALITY
+# ============================================================================
+
+# Code formatting
+black>=23.0.0
+
+# Linting
+ruff>=0.1.0
+
+# Type checking
+mypy>=1.7.0
+
+# Pre-commit hooks
+pre-commit>=3.5.0
+
+# ============================================================================
+# OPTIONAL: PERFORMANCE & MONITORING
+# ============================================================================
+
+# Performance monitoring
+prometheus-client>=0.19.0
+
+# Structured logging
+python-json-logger>=2.0.0
+
+# ============================================================================
+# OPTIONAL: DEVELOPMENT TOOLS
+# ============================================================================
+
+# Interactive shell
+ipython>=8.18.0
+
+# Jupyter notebooks
+jupyter>=1.0.0
+
+# ============================================================================
+# NOTES
+# ============================================================================
+# - All versions are latest as of 2025-11-21
+# - Python 3.12+ required
+# - Use: pip install -r requirements.txt
+# - Update: pip install --upgrade -r requirements.txt
+# - Check: pip list --outdated
+

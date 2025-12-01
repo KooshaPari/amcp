@@ -1,0 +1,7 @@
+{
+  "service": "krouter",
+  "project": "router",
+  "port": 8080,
+  "public_url": "https://ai.kooshapari.com",
+  "tunnel_id": "ca2f03fa0bb24a739e38451bebb7b558"
+}
