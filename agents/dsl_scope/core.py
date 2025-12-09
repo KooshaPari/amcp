@@ -43,7 +43,7 @@ from .project_inference import (
 )
 
 # Comprehensive scope inference
-from .inference_engine import ComprehensiveScopeInferenceEngine
+from .inference import ComprehensiveScopeInferenceEngine
 
 # Inference types
 from .inference.types import InferenceSignal

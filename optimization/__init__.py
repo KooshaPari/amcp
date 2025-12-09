@@ -14,7 +14,11 @@ from .core_integration import *
 from .core_caching import *
 from .core_routing import *
 from .core_planning import *
-from .core_compression import *
+from .compression import (
+    ContextCompressor,
+    ACONCompressor,
+    CompressionConfig,
+)
 from .core_parallel import *
 from .core_streaming import *
 from .core_http2 import *

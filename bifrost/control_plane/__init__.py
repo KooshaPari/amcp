@@ -7,17 +7,19 @@ Provides integration with Bifrost's control plane for:
 - Configuration sync
 """
 
-from smartcp.bifrost.control_plane.core import (
-    SmartCPControlPlane,
+from smartcp.bifrost.control_plane.models import (
+    CapabilityType,
     ControlPlaneConfig,
-    ServerStatus,
+    ProgressUpdate,
     ServerCapability,
     ServerHealth,
-    CapabilityType,
-    ProgressUpdate,
+    ServerStatus,
+)
+from smartcp.bifrost.control_plane.orchestrator import (
+    SmartCPControlPlane,
+    close_control_plane,
     get_control_plane,
     init_control_plane,
-    close_control_plane,
 )
 
 __all__ = [

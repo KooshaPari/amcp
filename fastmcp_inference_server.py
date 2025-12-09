@@ -12,7 +12,7 @@ Extends the base FastMCP 2.13 server with:
 This is the production-ready server combining:
 1. FastMCP 2.13 framework (fastmcp_2_13_server.py)
 2. DSL Scope System (dsl_scope/)
-3. Comprehensive Inference Engine (dsl_scope/inference_engine.py)
+3. Comprehensive Inference Engine (dsl_scope/inference/)
 4. MCP Inference Bridge (mcp_inference_bridge.py)
 """
 
@@ -23,14 +23,9 @@ from enum import Enum
 
 from fastmcp import FastMCP, Tool, Resource, Prompt
 
-from fastmcp_2_13_server import (
-    FastMCP213Server,
-    ServerConfig,
-    TransportType,
-    AuthType,
-    MiddlewareStack,
-    AuthenticationProvider,
-)
+# Use FastMCP 2.13 directly instead of custom wrapper
+from fastmcp import FastMCP
+from fastmcp.server.auth import AuthProvider
 
 from mcp.inference import (
     MCPInferenceBridge,

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from .model_router import RoutingDecision
-from .context_compression import CompressionResult
+from .compression import CompressionResult
 from .planning import PlanTree
 
 

@@ -4,8 +4,9 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
-from smartcp.fastmcp_2_13_server import AuthenticationProvider
-from smartcp.fastmcp_auth import DCRProvider, PKCEProvider, Token
+from fastmcp.server.auth import AuthProvider
+from auth.oauth_providers import DCRProvider, PKCEProvider
+from auth.oauth_models import Token
 
 from smartcp.auth.jwt_validator import JWTValidator
 from smartcp.auth.session_manager import SessionManager

@@ -22,8 +22,9 @@ from .metrics import OptimizationMetrics, OptimizedRequest
 from .prompt_cache import CacheBreakpoint, get_prompt_cache
 from .model_router import RoutingDecision, ComplexityLevel, get_complexity_router
 from .planning import get_reactree_planner
-from .context_compression import get_acon_compressor
-from .parallel_executor import ExecutionBatch, get_parallel_executor
+from .compression import get_acon_compressor
+from .parallel_executor.models import ExecutionBatch
+from .parallel_executor.factory import get_parallel_executor
 
 logger = logging.getLogger(__name__)
 

@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from .prompt_cache import PromptCacheConfig
 from .model_router import ModelRoutingConfig, ComplexityLevel
 from .planning import PlanningConfig
-from .context_compression import CompressionConfig
-from .parallel_executor import ExecutionConfig
+from .compression import CompressionConfig
+from .parallel_executor.models import ExecutionConfig
 
 
 @dataclass

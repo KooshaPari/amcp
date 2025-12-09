@@ -1,4 +1,4 @@
-.PHONY: help install test lint format type-check security clean docker-build docker-run docker-up docker-down deploy
+.PHONY: help install test lint format type-check security clean build-wheels build-constraints build-go build-go-all build-cli build-cli-all deploy
 
 help: ## Show this help message
 	@echo "SmartCP API - Development Commands"
@@ -44,22 +44,37 @@ clean: ## Clean temporary files
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
-	rm -rf htmlcov/ .coverage coverage.xml *.log
+	rm -rf htmlcov/ .coverage coverage.xml *.log dist/ wheelhouse/ bin/
 
-docker-build: ## Build Docker image
-	docker build -t smartcp-api:latest .
+# ---------- Native build artifacts (no Docker) ----------
 
-docker-run: ## Run Docker container
-	docker run -p 8000:8000 --env-file .env smartcp-api:latest
+build-wheels: ## Build Python wheels into wheelhouse/ (smartcp + deps)
+	python -m build --wheel --outdir wheelhouse .
 
-docker-up: ## Start services with docker-compose
-	docker-compose up -d
+build-constraints: ## Export pinned constraints from pyproject
+	pip install uv >/dev/null 2>&1 || true
+	uv pip compile pyproject.toml --all-extras -o constraints.txt
 
-docker-down: ## Stop services with docker-compose
-	docker-compose down
+build-go: ## Build bifrost-backend for host OS/arch
+	cd bifrost_backend && go build -o ../bin/bifrost-backend ./cmd/server
 
-docker-logs: ## View docker-compose logs
-	docker-compose logs -f api
+build-go-all: ## Cross-build bifrost-backend (linux/windows/darwin; amd64+arm64)
+	mkdir -p bin
+	cd bifrost_backend && GOOS=linux   GOARCH=amd64 go build -o ../bin/bifrost-backend-linux-amd64   ./cmd/server
+	cd bifrost_backend && GOOS=linux   GOARCH=arm64 go build -o ../bin/bifrost-backend-linux-arm64   ./cmd/server
+	cd bifrost_backend && GOOS=darwin  GOARCH=arm64 go build -o ../bin/bifrost-backend-darwin-arm64  ./cmd/server
+	cd bifrost_backend && GOOS=darwin  GOARCH=amd64 go build -o ../bin/bifrost-backend-darwin-amd64 ./cmd/server
+	cd bifrost_backend && GOOS=windows GOARCH=amd64 go build -o ../bin/bifrost-backend-windows-amd64.exe ./cmd/server
+
+build-cli: ## Build smartcpcli (Go) for host
+\tgo build -o bin/smartcpcli ./cmd/smartcpcli
+
+build-cli-all: ## Cross-build smartcpcli (linux/darwin/windows; amd64+arm64)
+\tmkdir -p bin
+\tGOOS=linux   GOARCH=amd64 go build -o bin/smartcpcli-linux-amd64   ./cmd/smartcpcli
+\tGOOS=linux   GOARCH=arm64 go build -o bin/smartcpcli-linux-arm64   ./cmd/smartcpcli
+\tGOOS=darwin  GOARCH=arm64 go build -o bin/smartcpcli-darwin-arm64  ./cmd/smartcpcli
+\tGOOS=windows GOARCH=amd64 go build -o bin/smartcpcli-windows-amd64.exe ./cmd/smartcpcli
 
 deploy-staging: ## Deploy to staging
 	./scripts/deploy.sh staging
@@ -71,11 +86,3 @@ ci: lint type-check test ## Run all CI checks locally
 
 pre-commit: ## Run pre-commit hooks
 	pre-commit run --all-files
-
-dev: ## Start development environment
-	docker-compose up -d
-	@echo "Services started. API available at http://localhost:8000"
-
-stop: ## Stop all services
-	docker-compose down
-	@echo "All services stopped"

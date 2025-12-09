@@ -1,19 +1,18 @@
 """
-Vector & Graph Database Integration (Proposal 18)
+Vector & Graph access layer (Bifrost-first).
 
-Provides:
-- Vector DB (Qdrant/Weaviate)
-- Graph DB (Neo4j)
-- Hybrid search
-- Relationship management
-
-This module has been refactored to eliminate module-level mutable state.
-All database instances are now passed through dependency injection via context.
+Design goals
+- SmartCP must NOT talk directly to databases. All persistence/search goes through Bifrost.
+- For tests/offline mode we allow an in-memory fallback, but production defaults to Bifrost.
 """
 
 import logging
-from typing import Dict, Optional, Any, List
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+from smartcp.infrastructure.bifrost.client import BifrostClient
+from smartcp.infrastructure.bifrost.queries import QueryBuilder, QueryProcessor
+from smartcp.infrastructure.bifrost.client import BifrostError
 
 logger = logging.getLogger(__name__)
 
@@ -47,55 +46,98 @@ class GraphRelationship:
 
 
 class VectorDatabase:
-    """Vector database integration."""
+    """Vector database integration (Bifrost-first)."""
 
-    def __init__(self, provider: str = "qdrant") -> None:
-        self.provider = provider
-        self.vectors: Dict[str, VectorRecord] = {}
+    def __init__(
+        self,
+        bifrost_client: Optional[BifrostClient] = None,
+        use_memory: bool = False,
+    ) -> None:
+        # Production: always Bifrost
+        self.client = bifrost_client or BifrostClient()
+        self.use_memory = use_memory
+        self.vectors: Dict[str, VectorRecord] = {} if use_memory else {}
 
     async def insert_vector(self, record: VectorRecord) -> bool:
-        """Insert vector."""
-        try:
-            logger.info(f"Inserting vector: {record.id}")
-
+        """Insert vector via Bifrost (or in-memory when use_memory=True)."""
+        if self.use_memory:
             self.vectors[record.id] = record
-
-            logger.info(f"Inserted vector: {record.id}")
             return True
 
-        except Exception as e:
-            logger.error(f"Error inserting vector: {e}")
-            return False
+        mutation = """
+        mutation UpsertVector($id: ID!, $vector: [Float!]!, $metadata: JSON) {
+          upsertVector(id: $id, vector: $vector, metadata: $metadata) {
+            id
+          }
+        }
+        """
+        try:
+            await self.client.mutate(
+                mutation,
+                {
+                    "id": record.id,
+                    "vector": record.vector,
+                    "metadata": record.metadata,
+                },
+            )
+            return True
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Error inserting vector via Bifrost: {e}")
+            raise
 
     async def search_vectors(
-        self, query_vector: List[float], top_k: int = 10
+        self, query_vector: Any, top_k: int = 10
     ) -> List[VectorRecord]:
-        """Search vectors."""
+        """Search vectors via Bifrost semanticSearch (or in-memory)."""
+        if self.use_memory:
+            return list(self.vectors.values())[:top_k]
+
         try:
-            logger.info(f"Searching vectors (top_k={top_k})")
+            query = QueryBuilder.semantic_search_query()
+            # Convert vector -> pseudo text query for Bifrost semantic search
+            if isinstance(query_vector, list):
+                query_text = " ".join(str(x) for x in query_vector)
+            else:
+                query_text = str(query_vector)
 
-            # Mock similarity search
-            results = list(self.vectors.values())[:top_k]
-
-            logger.info(f"Found {len(results)} vectors")
-            return results
-
-        except Exception as e:
+            result = await self.client.query(
+                query,
+                {"query": query_text, "limit": top_k, "filters": None},
+            )
+            # Bifrost returns semanticSearch items; coerce to VectorRecord
+            search_results = QueryProcessor.process_search_results(result)
+            return [
+                VectorRecord(
+                    id=item.id,
+                    vector=[],
+                    metadata=item.metadata | {"content": item.content, "score": item.score},
+                )
+                for item in search_results
+            ]
+        except BifrostError as e:
+            logger.error(f"Bifrost vector search failed: {e}")
+            raise
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Error searching vectors: {e}")
-            return []
+            raise
 
     async def delete_vector(self, vector_id: str) -> bool:
-        """Delete vector."""
-        try:
-            if vector_id in self.vectors:
-                del self.vectors[vector_id]
-                logger.info(f"Deleted vector: {vector_id}")
-                return True
-            return False
+        """Delete vector via Bifrost (or in-memory)."""
+        if self.use_memory:
+            return bool(self.vectors.pop(vector_id, None))
 
-        except Exception as e:
-            logger.error(f"Error deleting vector: {e}")
-            return False
+        mutation = """
+        mutation DeleteVector($id: ID!) {
+          deleteVector(id: $id) { success }
+        }
+        """
+        try:
+            result = await self.client.mutate(mutation, {"id": vector_id})
+            success = result.get("deleteVector", {}).get("success", False)
+            return bool(success)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Error deleting vector via Bifrost: {e}")
+            raise
 
 
 class GraphDatabase:
@@ -265,4 +307,3 @@ def create_vector_graph_context(
         vector_db=vector_db or VectorDatabase(),
         graph_db=graph_db or GraphDatabase(),
     )
-

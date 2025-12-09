@@ -4,8 +4,11 @@ Bifrost Extensions SDK - Smart LLM Gateway
 Production-grade SDK for intelligent model routing, tool routing,
 classification, and cost optimization.
 
+Unified client from infrastructure.bifrost with backward compatibility aliases.
+
 Public API:
     - GatewayClient: Main client for routing operations
+    - BifrostClient: Unified client (GraphQL, HTTP, WebSocket)
     - RoutingStrategy: Routing optimization strategies
     - Models: Request/response data models
 
@@ -19,12 +22,26 @@ Example:
     ... )
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __author__ = "SmartCP Team"
 __license__ = "MIT"
 
+# Import unified client from infrastructure
+from infrastructure.bifrost import (
+    BifrostClient,
+    BifrostClientConfig,
+    HTTPClient,
+    BifrostHTTPClient,
+    ProductionGatewayClient,
+    BifrostError,
+    RateLimitError,
+    CircuitBreakerError,
+    TimeoutError as BifrostTimeoutError,
+    ValidationError as BifrostValidationError,
+)
+
+# Import gateway client
 from bifrost_extensions.client.gateway import GatewayClient
-from bifrost_extensions.http_client import HTTPClient, BifrostHTTPClient
 from bifrost_extensions.models import (
     RoutingStrategy,
     RoutingRequest,
@@ -35,18 +52,21 @@ from bifrost_extensions.models import (
     ClassificationResult,
 )
 from bifrost_extensions.exceptions import (
-    BifrostError,
     RoutingError,
     ValidationError,
     TimeoutError,
 )
 
 __all__ = [
-    # Client
+    # Core unified client
+    "BifrostClient",
+    "BifrostClientConfig",
+    # Gateway client (orchestration)
     "GatewayClient",
-    # HTTP Client
+    # Backward compatibility aliases
     "HTTPClient",
     "BifrostHTTPClient",
+    "ProductionGatewayClient",
     # Models
     "RoutingStrategy",
     "RoutingRequest",
@@ -55,8 +75,12 @@ __all__ = [
     "ToolRoutingDecision",
     "ClassificationRequest",
     "ClassificationResult",
-    # Exceptions
+    # Exceptions (unified + legacy)
     "BifrostError",
+    "RateLimitError",
+    "CircuitBreakerError",
+    "BifrostTimeoutError",
+    "BifrostValidationError",
     "RoutingError",
     "ValidationError",
     "TimeoutError",

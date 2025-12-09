@@ -16,6 +16,8 @@ from .executor import (
     UserScopedExecutor,
     ExecutionResult,
     SecurityChecker,
+    ExecutionError,
+    SecurityError,
     create_executor_service,
 )
 
@@ -29,5 +31,7 @@ __all__ = [
     "UserScopedExecutor",
     "ExecutionResult",
     "SecurityChecker",
+    "ExecutionError",
+    "SecurityError",
     "create_executor_service",
 ]

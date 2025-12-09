@@ -1,6 +1,6 @@
 """Tests for Neo4j configuration."""
 
-from infrastructure.adapters.neo4j.adapter import Neo4jConfig
+from neo4j_adapter import Neo4jConfig
 
 
 class TestNeo4jConfig:

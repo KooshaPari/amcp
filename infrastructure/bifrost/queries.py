@@ -90,7 +90,7 @@ class QueryBuilder:
         """Build semantic search query."""
         return """
             query SemanticSearch($query: String!, $limit: Int, $filters: JSON) {
-                semanticSearch(query: $query, limit: $limit, filters: $filters) {
+                vectorSearch(query: $query, limit: $limit, filters: $filters) {
                     id
                     content
                     metadata
@@ -151,7 +151,7 @@ class QueryProcessor:
         result: Dict[str, Any],
     ) -> List[SearchResult]:
         """Process semantic search query result."""
-        results_data = result.get("semanticSearch", [])
+        results_data = result.get("vectorSearch", [])
 
         return [
             SearchResult(

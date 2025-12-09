@@ -1,18 +1,54 @@
-"""Bifrost GraphQL client module."""
+"""Unified Bifrost client module.
 
-from .client import BifrostClient
-from .errors import BifrostError, ConnectionError, GraphQLError, TimeoutError, ValidationError
+Consolidated client supporting GraphQL, HTTP APIs, WebSocket subscriptions,
+and full resilience patterns (retry, circuit breaker, rate limiting).
+
+Backward compatibility: Provides aliases for legacy imports.
+"""
+
+from .client import (
+    BifrostClient,
+    BifrostClientConfig,
+    BifrostError,
+    RateLimitError,
+    CircuitBreakerError,
+    TimeoutError,
+    ValidationError,
+    CircuitBreakerState,
+    TokenBucketLimiter,
+)
+from .errors import ConnectionError, GraphQLError
 from .queries import QueryBuilder, QueryProcessor, RoutingDecision, SearchResult, ToolMetadata
 from .mutations import MutationBuilder, MutationFactory, MutationProcessor
 from .subscriptions import SubscriptionBuilder, SubscriptionVariables
 
+# Backward compatibility aliases for legacy code
+HTTPClient = BifrostClient
+BifrostHTTPClient = BifrostClient
+ProductionGatewayClient = BifrostClient
+GraphQLSubscriptionClient = BifrostClient
+
 __all__ = [
+    # Core client
     "BifrostClient",
+    "BifrostClientConfig",
+    # Backward compatibility aliases
+    "HTTPClient",
+    "BifrostHTTPClient",
+    "ProductionGatewayClient",
+    "GraphQLSubscriptionClient",
+    # Exceptions
     "BifrostError",
-    "ConnectionError",
-    "GraphQLError",
+    "RateLimitError",
+    "CircuitBreakerError",
     "TimeoutError",
     "ValidationError",
+    "ConnectionError",
+    "GraphQLError",
+    # Resilience components (for advanced usage)
+    "CircuitBreakerState",
+    "TokenBucketLimiter",
+    # GraphQL builders
     "QueryBuilder",
     "QueryProcessor",
     "MutationBuilder",
@@ -20,27 +56,8 @@ __all__ = [
     "MutationProcessor",
     "SubscriptionBuilder",
     "SubscriptionVariables",
+    # Response types
     "RoutingDecision",
     "SearchResult",
     "ToolMetadata",
 ]
-
-
-async def bifrost_client(
-    url: str = None,
-    api_key: str = None,
-    **kwargs,
-):
-    """
-    Create BifrostClient context manager.
-
-    Example:
-        async with bifrost_client() as client:
-            tools = await client.query_tools()
-    """
-    client = BifrostClient(url=url, api_key=api_key, **kwargs)
-    await client.connect()
-    try:
-        yield client
-    finally:
-        await client.disconnect()

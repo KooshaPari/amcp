@@ -1,7 +1,11 @@
 """Tests for resilience patterns."""
 
-import asyncio
 import pytest
+
+# Skip module if dependencies are not installed
+pytest.importorskip("pybreaker")
+
+import asyncio
 import time
 
 from bifrost_extensions.resilience.retry import (

@@ -57,28 +57,8 @@ dev = [
 ]
 
 [tool.setuptools]
-# Explicitly define packages to avoid flat-layout issues
-packages = [
-    "auth",
-    "bifrost",
-    "bifrost_api",
-    "bifrost_backend",
-    "bifrost_extensions",
-    "bifrost_ml",
-    "config",
-    "dsl_scope",
-    "fastmcp_auth",
-    "infrastructure",
-    "middleware",
-    "migrations",
-    "models",
-    "optimization",
-    "router",
-    "services",
-    "tools",
-    "usage",
-    "vibeproxy",
-]
+# Automatically discover packages
+packages = ["auth", "bifrost", "bifrost_extensions", "config", "infrastructure", "middleware", "models", "optimization", "services", "tools", "usage"]
 
 [tool.ruff]
 line-length = 100

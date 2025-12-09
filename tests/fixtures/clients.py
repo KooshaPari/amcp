@@ -44,6 +44,7 @@ def mock_bifrost_client():
 @pytest.fixture
 def mock_router_service():
     """Mock RoutingService for integration tests."""
+    pytest.importorskip("router", reason="Router module moved to research/KRouter-standalone")
     from router.router_core.domain.models.model import Model
     from router.router_core.domain.models.plan import RoutingPlan
     from router.router_core.domain.models.classification import Classification

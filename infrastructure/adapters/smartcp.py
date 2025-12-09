@@ -10,7 +10,7 @@ Integrates all Phase 1 components:
 
 import logging
 from typing import Optional
-from fastmcp_2_13_server import (
+from fastmcp import (
     FastMCP213Server, ServerConfig, TransportType, AuthType,
     create_smartcp_server
 )
