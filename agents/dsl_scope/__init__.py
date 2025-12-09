@@ -49,6 +49,7 @@ from .project_inference import (
     get_inference_engine,
 )
 from .inference_engine import ComprehensiveScopeInferenceEngine
+from .inference.types import InferenceSignal
 
 __all__ = [
     # Scope levels
@@ -76,9 +77,12 @@ __all__ = [
     "ProjectInferenceEngine",
     "InferredContext",
     "get_inference_engine",
-    
+
     # Comprehensive scope inference
     "ComprehensiveScopeInferenceEngine",
+
+    # Inference types
+    "InferenceSignal",
 ]
 
 __version__ = "2.0.0"
