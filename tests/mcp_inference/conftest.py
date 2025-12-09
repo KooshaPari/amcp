@@ -7,7 +7,7 @@ This module provides common fixtures used across all MCP inference tests.
 import pytest
 from typing import Dict, Any, List
 
-from mcp_inference_bridge import MCPInferenceBridge
+from mcp.inference import MCPInferenceBridge
 from agents.dsl_scope import get_dsl_scope_system
 
 

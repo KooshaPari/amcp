@@ -6,7 +6,7 @@ Tests the complete workflow from messages to inference to scope activation.
 
 import pytest
 
-from mcp_inference_bridge import MCPInferenceBridge
+from mcp.inference import MCPInferenceBridge
 from agents.dsl_scope import get_dsl_scope_system
 
 
