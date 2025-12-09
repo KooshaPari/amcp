@@ -1,28 +1,17 @@
-"""SmartCP Infrastructure Package.
+"""Infrastructure Layer
 
-Runtime expectation: all resource access is delegated via Bifrost.
-The Supabase adapter remains for legacy/back-compat only and should not be
-used in new code paths. Prefer adapters in smartcp.infrastructure.state (Bifrost-backed).
+Core infrastructure components including adapters, executors, and common utilities
+for database, authentication, storage, and external service integration.
 """
 
-from smartcp.infrastructure.supabase_adapter import (
-    SupabaseAdapter,
-    SupabaseConfig,
-    create_supabase_adapter,
-)
-from smartcp.infrastructure.state import (
-    StateAdapter,
-    BifrostStateAdapter,
-    create_state_adapter,
-)
+from . import executors
+from . import common
+from . import adapters
+from . import bifrost
 
 __all__ = [
-    # Supabase (legacy, do not use in new code)
-    "SupabaseAdapter",
-    "SupabaseConfig",
-    "create_supabase_adapter",
-    # State management (Bifrost-backed)
-    "StateAdapter",
-    "BifrostStateAdapter",
-    "create_state_adapter",
+    "executors",
+    "common",
+    "adapters",
+    "bifrost",
 ]
