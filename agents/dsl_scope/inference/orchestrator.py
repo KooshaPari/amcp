@@ -8,7 +8,7 @@ import logging
 from typing import Optional, Dict, List, Any
 from collections import defaultdict
 
-from dsl_scope.scope_levels import ScopeLevel
+from ..scope_levels import ScopeLevel
 from .types import InferenceSignal
 from .detector import ScopeInferenceEngine
 

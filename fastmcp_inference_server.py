@@ -32,13 +32,13 @@ from fastmcp_2_13_server import (
     AuthenticationProvider,
 )
 
-from mcp_inference_bridge import (
+from mcp.inference import (
     MCPInferenceBridge,
     InferenceMiddleware,
     create_inference_middleware,
 )
 
-from dsl_scope import get_dsl_scope_system, ScopeLevel
+from agents.dsl_scope import get_dsl_scope_system, ScopeLevel
 
 logger = logging.getLogger(__name__)
 

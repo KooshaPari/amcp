@@ -8,7 +8,7 @@ import pytest
 from typing import Dict, Any, List
 
 from mcp_inference_bridge import MCPInferenceBridge
-from dsl_scope import get_dsl_scope_system
+from agents.dsl_scope import get_dsl_scope_system
 
 
 @pytest.fixture

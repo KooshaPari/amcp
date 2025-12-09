@@ -12,7 +12,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 import logging
 
-from dsl_scope.scope_levels import ScopeLevel
+from ..scope_levels import ScopeLevel
 from .types import InferenceSignal, ToolCallAnalysis, ChatAnalysis
 from . import patterns
 

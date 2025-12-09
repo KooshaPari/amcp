@@ -14,7 +14,7 @@ New code should import from dsl_scope.inference directly:
 """
 
 # Re-export all public APIs for backward compatibility
-from dsl_scope.inference import (
+from .inference import (
     InferenceSignal,
     ToolCallAnalysis,
     ChatAnalysis,

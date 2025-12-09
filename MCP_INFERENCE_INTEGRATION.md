@@ -130,7 +130,7 @@ result = await server.process_completion_request(
 Tools can now access scoped variables:
 
 ```python
-from dsl_scope import get_dsl_scope_system, ScopeLevel
+from agents.dsl_scope import get_dsl_scope_system, ScopeLevel
 
 @server.mcp.tool
 async def create_file(filename: str, content: str) -> dict:

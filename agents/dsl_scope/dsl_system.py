@@ -7,11 +7,11 @@ into a single coherent system.
 
 import logging
 from typing import Optional, Any, Callable
-from dsl_scope.scope_levels import ScopeLevel, ScopeHierarchy
-from dsl_scope.context_tracking import ContextManager, ScopeContext
-from dsl_scope.storage import ScopeStorage
-from dsl_scope.background_tasks import BackgroundTaskManager, TaskStatus
-from dsl_scope.context_managers import (
+from .scope_levels import ScopeLevel, ScopeHierarchy
+from .context_tracking import ContextManager, ScopeContext
+from .storage import ScopeStorage
+from .background_tasks import BackgroundTaskManager, TaskStatus
+from .context_managers import (
     session_scope,
     tool_call_scope,
     prompt_chain_scope,
@@ -22,7 +22,7 @@ from dsl_scope.context_managers import (
     organization_scope,
     local_scope,
 )
-from dsl_scope.project_inference import get_inference_engine, InferredContext
+from .project_inference import get_inference_engine, InferredContext
 
 logger = logging.getLogger(__name__)
 

@@ -15,7 +15,7 @@ from typing import Optional
 from pathlib import Path
 from datetime import datetime
 
-from dsl_scope.scope_levels import ScopeEntry, ScopeLevel
+from .scope_levels import ScopeEntry, ScopeLevel
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ Demonstrates:
 """
 
 import asyncio
-from dsl_scope import get_dsl_scope_system, ScopeLevel
+from . import get_dsl_scope_system, ScopeLevel
 
 
 async def example_scoped_variables():

@@ -11,7 +11,7 @@ Tests the core inference bridge operations including:
 
 import pytest
 
-from dsl_scope import ScopeLevel
+from agents.dsl_scope import ScopeLevel
 
 
 class TestMCPInferenceBridge:

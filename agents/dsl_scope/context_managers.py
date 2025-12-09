@@ -10,8 +10,8 @@ Provides Pythonic context manager syntax for scope operations:
 
 from contextlib import asynccontextmanager, contextmanager
 from typing import Optional, AsyncGenerator, Generator, Any
-from dsl_scope.context_tracking import ContextManager, ScopeContext
-from dsl_scope.scope_levels import ScopeLevel
+from .context_tracking import ContextManager, ScopeContext
+from .scope_levels import ScopeLevel
 import logging
 
 logger = logging.getLogger(__name__)

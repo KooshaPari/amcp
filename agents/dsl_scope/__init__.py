@@ -23,9 +23,9 @@ Features:
 - Scope-aware context managers
 """
 
-from dsl_scope.scope_levels import ScopeLevel, ScopeHierarchy, ScopeEntry
-from dsl_scope.storage import ScopeStorage
-from dsl_scope.context_tracking import (
+from .scope_levels import ScopeLevel, ScopeHierarchy, ScopeEntry
+from .storage import ScopeStorage
+from .context_tracking import (
     ContextManager,
     ScopeContext,
     _current_session_id,
@@ -37,18 +37,18 @@ from dsl_scope.context_tracking import (
     _current_workspace_id,
     _current_organization_id,
 )
-from dsl_scope.background_tasks import (
+from .background_tasks import (
     BackgroundTaskManager,
     BackgroundTask,
     TaskStatus,
 )
-from dsl_scope.dsl_system import DSLScopeSystem, get_dsl_scope_system
-from dsl_scope.project_inference import (
+from .dsl_system import DSLScopeSystem, get_dsl_scope_system
+from .project_inference import (
     ProjectInferenceEngine,
     InferredContext,
     get_inference_engine,
 )
-from dsl_scope.inference import ComprehensiveScopeInferenceEngine
+from .inference_engine import ComprehensiveScopeInferenceEngine
 
 __all__ = [
     # Scope levels

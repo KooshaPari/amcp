@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, List, Any
 
-from dsl_scope.scope_levels import ScopeLevel
+from ..scope_levels import ScopeLevel
 
 
 @dataclass

@@ -18,12 +18,12 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 from dataclasses import dataclass, asdict
 
-from dsl_scope import (
+from agents.dsl_scope import (
     get_dsl_scope_system,
     ComprehensiveScopeInferenceEngine,
     ScopeLevel,
+    InferenceSignal,
 )
-from dsl_scope.inference_engine import InferenceSignal
 
 logger = logging.getLogger(__name__)
 
