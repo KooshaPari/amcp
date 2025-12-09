@@ -1,8 +1,8 @@
 import pytest
 
-from smartcp.bifrost_client import BifrostClient
-from smartcp.services.executor import UserScopedExecutor, ExecuteCodeRequest
-from smartcp.services.models import UserContext
+from infrastructure.bifrost.client import BifrostClient
+from services.executor import UserScopedExecutor, ExecuteCodeRequest
+from services.models import UserContext
 
 
 @pytest.mark.asyncio

@@ -10,16 +10,17 @@ Tests for:
 
 import pytest
 import asyncio
-from fastmcp_2_13_server import (
-    FastMCP213Server, ServerConfig, TransportType, AuthType,
-    OAuthProvider, BearerTokenProvider, EnvAuthProvider,
-    create_smartcp_server
-)
-from multi_transport import (
+# TODO: These FastMCP modules need proper exports
+# from mcp.server import (
+#     FastMCP213Server, ServerConfig, TransportType, AuthType,
+#     OAuthProvider, BearerTokenProvider, EnvAuthProvider,
+#     create_smartcp_server
+# )
+from infrastructure.adapters.transport import (
     StdioTransport, SSETransport, HTTPTransport, TransportConfig,
     create_transport
 )
-from bash_executor import (
+from infrastructure.executors.bash import (
     BashExecutor, CommandValidator, JobStatus, execute_bash
 )
 

@@ -5,7 +5,7 @@ Validates dependency injection pattern and removal of global mutable state.
 
 import pytest
 import asyncio
-from smartcp.vector_graph_db import (
+from infrastructure.adapters.vector_db import (
     VectorRecord,
     GraphNode,
     GraphRelationship,
