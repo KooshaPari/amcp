@@ -211,16 +211,18 @@ class SmartCPServer:
         )
 
         # Create infrastructure
-        bifrost_config = BifrostClientConfig(
-            url=settings.bifrost.url,
-            api_key=settings.bifrost.api_key or os.environ.get("BIFROST_API_KEY"),
-            timeout_seconds=settings.bifrost.timeout_seconds,
-        )
-        bifrost_client = BifrostClient(bifrost_config) if settings.bifrost.enabled else None
+        bifrost_client = None
+        if settings.bifrost.url:
+            bifrost_config = BifrostClientConfig(
+                url=settings.bifrost.url,
+                api_key=settings.bifrost.api_key or os.environ.get("BIFROST_API_KEY"),
+                timeout_seconds=settings.bifrost.timeout_seconds,
+            )
+            bifrost_client = BifrostClient(bifrost_config)
 
         # StateAdapter delegates to Bifrost for all storage operations
         state = create_state_adapter(
-            bifrost_client=bifrost_client, use_memory=not settings.bifrost.enabled
+            bifrost_client=bifrost_client, use_memory=bifrost_client is None
         )
 
         # Create services
@@ -228,9 +230,6 @@ class SmartCPServer:
         executor = create_executor_service(
             memory=memory,
             bifrost_client=bifrost_client,
-            enable_bifrost_execution=bool(
-                os.environ.get("BIFROST_EXECUTION_ENABLED", "").lower() in {"1", "true", "yes"}
-            ),
         )
 
         # Create auth - use defaults if not configured

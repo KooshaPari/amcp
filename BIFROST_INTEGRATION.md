@@ -1,4 +1,6 @@
-# Bifrost Integration - SmartCP to Bifrost Backend
+# Bifrost Integration - SmartCP to Bifrost Backend (Updated Notice)
+
+> Current truth lives in `INTEROPERABILITY_GUIDE.md`. SmartCP is stateless; all resource access (state, memory, execute) must go through Bifrost. Supabase pgvector is the default datastore; local Postgres/pgvectorscale is optional; Qdrant is not part of the default stack.
 
 ## Overview
 

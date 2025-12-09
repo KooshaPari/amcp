@@ -1,19 +1,11 @@
-"""Shared fixtures for Neo4j storage adapter tests."""
+"""Shared fixtures for Neo4j storage adapter tests.
+
+Imports common database fixtures from tests.fixtures module.
+"""
 
 import pytest
-import sys
-import os
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
-
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from neo4j_storage_adapter import (
-    Neo4jStorageAdapter,
-    Neo4jConfig,
-    Neo4jConnectionState,
-)
 
 
 def _utcnow() -> datetime:
@@ -27,11 +19,7 @@ class _MockCounters:
 
 
 def _create_result_summary(query_type: str = "r") -> MagicMock:
-    """Create a mock result summary with properly configured counters.
-
-    Uses a simple object for counters since MagicMock has issues with
-    __dict__ manipulation in Python 3.13.
-    """
+    """Create a mock result summary with properly configured counters."""
     mock_counters = _MockCounters()
     return MagicMock(counters=mock_counters, query_type=query_type)
 
@@ -39,10 +27,12 @@ def _create_result_summary(query_type: str = "r") -> MagicMock:
 @pytest.fixture
 def adapter():
     """Create adapter with mocked driver for testing."""
-    config = Neo4jConfig(
-        uri="bolt://localhost:7687",
-        username="neo4j",
-        password="test"
-    )
-    adapter = Neo4jStorageAdapter(config)
-    return adapter
+    try:
+        from neo4j_adapter import Neo4jStorageAdapter, Neo4jConfig
+
+        config = Neo4jConfig(uri="bolt://localhost:7687", username="neo4j", password="test")
+        adapter = Neo4jStorageAdapter(config)
+        return adapter
+    except ImportError:
+        # If neo4j_adapter not available, return None
+        return None

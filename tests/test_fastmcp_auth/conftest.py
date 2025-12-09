@@ -1,18 +1,14 @@
-"""Shared fixtures and utilities for FastMCP auth tests."""
+"""Shared fixtures and utilities for FastMCP auth tests.
 
-import sys
-import os
-from datetime import datetime, timezone
+Imports common utilities from tests.fixtures module.
+"""
 
 import pytest
-
-# Add smartcp directory to path for direct module imports
-smartcp_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, smartcp_dir)
+from datetime import datetime, timezone
 
 
 def _utcnow() -> datetime:
-    """Get current UTC time with timezone info."""
+    """Get current UTC time."""
     return datetime.now(timezone.utc)
 
 

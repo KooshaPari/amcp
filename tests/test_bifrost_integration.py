@@ -9,7 +9,8 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
 
 from main import app
-from smartcp.infrastructure.bifrost import BifrostClient, RoutingDecision, ToolMetadata, SearchResult
+from infrastructure.bifrost.client import BifrostClient
+from infrastructure.bifrost.queries import RoutingDecision, ToolMetadata, SearchResult
 
 
 @pytest.fixture

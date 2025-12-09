@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git make
@@ -13,10 +13,7 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Generate GraphQL code
-RUN go run github.com/99designs/gqlgen generate
-
-# Build binary
+# Build binary (assumes generated code is already in repo)
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bifrost cmd/server/main.go
 
 # Runtime stage

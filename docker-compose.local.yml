@@ -44,13 +44,16 @@ services:
 
   # SmartCP FastMCP Server (stateless; delegates to Bifrost)
   smartcp:
+    env_file:
+      - .env
+      - ../.env
     build:
       context: .
       dockerfile: Dockerfile
     container_name: smartcp-mcp
     environment:
       # Bifrost endpoint (cloud or local)
-      BIFROST_URL: ${BIFROST_URL:-http://bifrost-api:8001/graphql}
+      BIFROST_URL: ${BIFROST_URL:-http://bifrost-backend:8080/graphql}
       BIFROST_API_KEY: ${BIFROST_API_KEY:-}
 
       # Supabase (cloud default; required for auth/JWT)
@@ -67,7 +70,7 @@ services:
       VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
 
       # Service URLs
-      BIFROST_API_URL: ${BIFROST_URL:-http://bifrost-api:8001/graphql}
+      BIFROST_API_URL: ${BIFROST_URL:-http://bifrost-backend:8080/graphql}
       BIFROST_BACKEND_URL: http://bifrost-backend:8080
 
       # App Config
@@ -91,6 +94,9 @@ services:
 
   # Bifrost HTTP API (Python FastAPI)
   bifrost-api:
+    env_file:
+      - .env
+      - ../.env
     build:
       context: .
       dockerfile: bifrost_api/Dockerfile
@@ -131,9 +137,12 @@ services:
 
   # Bifrost Backend (Go GraphQL)
   bifrost-backend:
+    env_file:
+      - .env
+      - ../.env
     build:
-      context: .
-      dockerfile: bifrost_backend/Dockerfile
+      context: ./bifrost_backend
+      dockerfile: Dockerfile
     container_name: smartcp-bifrost-backend
     environment:
       # Database (cloud-first Supabase; optional local Postgres when profile enabled)
@@ -170,6 +179,7 @@ services:
 
   # Bifrost ML Service (Python MLX)
   bifrost-ml:
+    profiles: ["local-redis", "ml"]
     build:
       context: .
       dockerfile: bifrost_extensions/Dockerfile.ml

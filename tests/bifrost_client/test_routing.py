@@ -7,7 +7,7 @@ Tests request routing and tool selection functionality.
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from smartcp.infrastructure.bifrost import RoutingDecision
+from infrastructure.bifrost.queries import RoutingDecision
 
 
 class TestRouting:

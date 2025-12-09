@@ -12,7 +12,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from optimization.planning_strategy import (
+from optimization.planning import (
     PreActPlanner,
     PlanningConfig,
     PlanTree,

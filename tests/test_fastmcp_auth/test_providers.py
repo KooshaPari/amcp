@@ -18,7 +18,7 @@ from .conftest import _utcnow
 
 from fastmcp_auth.models import PKCEChallenge, DeviceCodeResponse
 from fastmcp_auth.providers import DCRProvider, PKCEProvider
-from smartcp.auth import (
+from auth import (
     FastMCPAuthEnhancedProvider,
     create_smartcp_server_with_auth,
 )

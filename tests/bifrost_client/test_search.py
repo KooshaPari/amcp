@@ -7,7 +7,7 @@ Tests semantic search functionality.
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from smartcp.infrastructure.bifrost import SearchResult
+from infrastructure.bifrost.queries import SearchResult
 
 
 class TestSearch:

@@ -7,7 +7,7 @@ Tests querying tools metadata and tool discovery functionality.
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from smartcp.infrastructure.bifrost import ToolMetadata
+from infrastructure.bifrost.queries import ToolMetadata
 
 
 class TestToolQueries:

@@ -14,14 +14,13 @@ Original file was 921 lines and has been decomposed into:
 """
 
 # Re-export all test classes for backward compatibility
-from tests.neo4j_storage import (
-    TestNeo4jConfig,
-    TestEntity,
-    TestRelationship,
-    TestCypherQueryBuilder,
-    TestNeo4jStorageAdapter,
-    TestVectorIndex,
-    TestBatchOperations,
+from tests.neo4j_storage.test_config import TestNeo4jConfig
+from tests.neo4j_storage.test_models import TestEntity, TestRelationship
+from tests.neo4j_storage.test_query_builder import TestCypherQueryBuilder
+from tests.neo4j_storage.test_crud import TestNeo4jStorageAdapter
+from tests.neo4j_storage.test_vector_index import TestVectorIndex
+from tests.neo4j_storage.test_batch import TestBatchOperations
+from tests.neo4j_storage.test_traversal import (
     TestQueryResult,
     TestConnectionState,
     TestFindEntities,

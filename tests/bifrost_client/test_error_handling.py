@@ -7,7 +7,7 @@ Tests error handling, context manager, and resource cleanup.
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from smartcp.infrastructure.bifrost import BifrostClient
+from infrastructure.bifrost.client import BifrostClient
 
 
 class TestContextManager:

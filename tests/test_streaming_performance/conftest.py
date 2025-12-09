@@ -1,4 +1,7 @@
-"""Shared fixtures for streaming performance tests."""
+"""Shared fixtures for streaming performance tests.
+
+Domain-specific fixtures for streaming performance testing.
+"""
 
 import pytest
 from optimization import (

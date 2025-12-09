@@ -1,0 +1,1 @@
+"""SmartCP test suite."""

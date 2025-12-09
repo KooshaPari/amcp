@@ -1,6 +1,6 @@
-# SmartCP Local Deployment Guide
+# SmartCP Local Deployment Guide (Updated for Hybrid Default)
 
-Complete guide for running SmartCP and all services locally using Docker Compose.
+This guide reflects the corrected architecture: SmartCP is stateless and delegates to Bifrost; Supabase Cloud (pgvector) is the default datastore; local Postgres/Redis are optional profiles; Qdrant is not part of the default stack.
 
 ## Table of Contents
 
@@ -16,27 +16,32 @@ Complete guide for running SmartCP and all services locally using Docker Compose
 
 ---
 
-## Quick Start
-
-**Get everything running in 3 commands:**
+## Quick Start (Hybrid default)
 
 ```bash
-# 1. Copy environment template
+# 1) Create env
 cp .env.local .env
 
-# 2. Add your API keys to .env (optional but recommended)
-# Edit .env and add: OPENAI_API_KEY, ANTHROPIC_API_KEY, VOYAGE_API_KEY
+# Required: Supabase cloud creds (for auth/pgvector)
+echo "SUPABASE_URL=https://<project>.supabase.co" >> .env
+echo "SUPABASE_KEY=<anon-or-service-key>" >> .env
 
-# 3. Start all services
-./scripts/start-local.sh
+# Optional: Bifrost API key
+echo "BIFROST_API_KEY=<optional>" >> .env
+
+# 2) Run SmartCP + Bifrost only (cloud data)
+docker compose -f smartcp/docker-compose.local.yml up -d smartcp bifrost-api bifrost-backend
+
+# 3) (Optional) add local Postgres/Redis for latency/offline
+docker compose -f smartcp/docker-compose.local.yml --profile local-postgres --profile local-redis up -d
 ```
 
-**That's it!** All services will be running at:
+Endpoints:
+- SmartCP MCP HTTP: http://localhost:8000
+- Bifrost GraphQL: http://localhost:8080/graphql (via bifrost-backend)
+- Bifrost API facade: http://localhost:8001
 
-- **SmartCP MCP Server**: http://localhost:8000
-- **Bifrost HTTP API**: http://localhost:8001
-- **Bifrost GraphQL**: http://localhost:8080/graphql
-- **Bifrost ML Service**: http://localhost:8002
+Note: Any Qdrant or mandatory-local-Postgres references elsewhere in this file are legacy and should be ignored unless you intentionally add a custom adapter; default vector store is Supabase pgvector (cloud) with optional local Postgres+pgvectorscale.
 
 ---
 
@@ -75,34 +80,22 @@ cp .env.local .env
 
 ## Architecture Overview
 
-### Services
+### Services (updated)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   SmartCP Platform                       │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │   SmartCP    │  │ Bifrost API  │  │Bifrost Backend│ │
-│  │  (FastMCP)   │  │  (FastAPI)   │  │  (GraphQL)   │  │
-│  │  Port: 8000  │  │  Port: 8001  │  │  Port: 8080  │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
-│         │                  │                  │          │
-│         └──────────────────┼──────────────────┘          │
-│                            │                             │
-│                   ┌────────┴────────┐                    │
-│                   │  Bifrost ML     │                    │
-│                   │  (MLX Service)  │                    │
-│                   │  Port: 8002     │                    │
-│                   └────────┬────────┘                    │
-│                            │                             │
-├────────────────────────────┼─────────────────────────────┤
-│           Infrastructure   │                             │
-│  ┌──────────────┐  ┌──────┴───────┐  ┌──────────────┐  │
-│  │  PostgreSQL  │  │    Redis     │  │   Qdrant     │  │
-│  │  Port: 5432  │  │  Port: 6379  │  │  Port: 6333  │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────┐
+│ SmartCP (stateless MCP)  : 8000               │
+│ Bifrost API (FastAPI)    : 8001               │
+│ Bifrost Backend (GraphQL): 8080 (9090 gRPC)   │
+│ Bifrost ML (optional)    : 8002               │
+├───────────────────────────────────────────────┤
+│ Cloud-first data (default)                    │
+│   Supabase Postgres + pgvector (cloud)        │
+│   Redis/NATS/Neo4j cloud (optional)           │
+│ Local optional (profiles)                     │
+│   Postgres + pgvectorscale (profile: local-postgres) │
+│   Redis (profile: local-redis)                │
+└───────────────────────────────────────────────┘
 ```
 
 ### Component Descriptions
@@ -113,9 +106,9 @@ cp .env.local .env
 | **bifrost-api** | Python + FastAPI | HTTP API for Bifrost | 8001 |
 | **bifrost-backend** | Go + GraphQL | GraphQL backend + gRPC | 8080/9090 |
 | **bifrost-ml** | Python + MLX | ML inference service | 8002 |
-| **postgres** | PostgreSQL 16 | Primary database | 5432 |
-| **redis** | Redis 7 | Cache + queues | 6379 |
-| **qdrant** | Qdrant | Vector database | 6333/6334 |
+| **postgres** | PostgreSQL 16 | Optional local DB (profile: local-postgres) | 5432 |
+| **redis** | Redis 7 | Optional local cache (profile: local-redis) | 6379 |
+| **qdrant** | — | Not used (removed from default stack) | — |
 
 ---
 
@@ -269,13 +262,11 @@ Checking Bifrost ML Service... ✓ Healthy
 Infrastructure Services:
 Checking PostgreSQL... ✓ Reachable
 Checking Redis... ✓ Reachable
-Checking Qdrant... ✓ Healthy
 
 Container Status:
 NAME                    STATUS              PORTS
 smartcp-postgres        Up 2 minutes       5432/tcp
 smartcp-redis           Up 2 minutes       6379/tcp
-smartcp-qdrant          Up 2 minutes       6333-6334/tcp
 smartcp-mcp             Up 2 minutes       8000/tcp
 smartcp-bifrost-api     Up 2 minutes       8001/tcp
 smartcp-bifrost-backend Up 2 minutes       8080/tcp, 9090/tcp
@@ -377,12 +368,6 @@ docker-compose -f docker-compose.local.yml exec redis redis-cli
 docker-compose -f docker-compose.local.yml exec redis redis-cli KEYS "*"
 ```
 
-### Qdrant Dashboard
-
-Open browser to: http://localhost:6333/dashboard
-
----
-
 ## Troubleshooting
 
 ### Services Won't Start
@@ -405,7 +390,6 @@ lsof -i :8001  # Bifrost API
 lsof -i :8080  # Bifrost Backend
 lsof -i :5432  # PostgreSQL
 lsof -i :6379  # Redis
-lsof -i :6333  # Qdrant
 
 # Kill process on port (if needed)
 kill -9 <PID>
@@ -472,15 +456,6 @@ docker-compose -f docker-compose.local.yml down -v
 docker-compose -f docker-compose.local.yml exec redis redis-cli ping
 
 # Should return: PONG
-```
-
-### Qdrant Connection Errors
-
-```bash
-# Check Qdrant
-curl http://localhost:6333/health
-
-# Should return: {"status":"ok"}
 ```
 
 ### Slow Performance
@@ -768,7 +743,7 @@ rm -rf ~/.docker/logs/*
 ### Monitoring
 
 - **Docker Dashboard**: Docker Desktop → Containers
-- **Qdrant Dashboard**: http://localhost:6333/dashboard
+_- Qdrant dashboard and references removed (not part of default stack)._
 - **Container Stats**: `docker stats`
 - **Service Logs**: `./scripts/logs.sh [service]`
 

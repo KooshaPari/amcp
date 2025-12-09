@@ -9,14 +9,13 @@ from services.models import UserContext
 async def test_execute_falls_back_when_bifrost_unavailable():
     """Executor should gracefully fall back when Bifrost is unreachable."""
     # Arrange
-    from smartcp.services.memory import UserScopedMemory
-    from smartcp.infrastructure.state.memory import InMemoryStateAdapter
+    from services.memory import UserScopedMemory
+    from infrastructure.state.memory import InMemoryStateAdapter
 
     client = BifrostClient()
     executor = UserScopedExecutor(
         memory=UserScopedMemory(InMemoryStateAdapter()),
         bifrost_client=client,
-        enable_bifrost_execution=True,
     )
     user_ctx = UserContext(user_id="u1", device_id="d1", session_id="s1", project_id="p1")
 
@@ -31,11 +30,11 @@ async def test_execute_falls_back_when_bifrost_unavailable():
 @pytest.mark.asyncio
 async def test_local_execution_still_works_without_bifrost(monkeypatch):
     """Local execution remains available when Bifrost is disabled."""
-    from smartcp.services.memory import UserScopedMemory
-    from smartcp.infrastructure.state.memory import InMemoryStateAdapter
+    from services.memory import UserScopedMemory
+    from infrastructure.state.memory import InMemoryStateAdapter
 
     memory = UserScopedMemory(InMemoryStateAdapter())
-    executor = UserScopedExecutor(memory=memory, enable_bifrost_execution=False)
+    executor = UserScopedExecutor(memory=memory)
     user_ctx = UserContext(user_id="u1")
 
     result = await executor.execute(

@@ -21,7 +21,7 @@ from .config import OptimizationConfig
 from .metrics import OptimizationMetrics, OptimizedRequest
 from .prompt_cache import CacheBreakpoint, get_prompt_cache
 from .model_router import RoutingDecision, ComplexityLevel, get_complexity_router
-from .planning_strategy import get_reactree_planner
+from .planning import get_reactree_planner
 from .context_compression import get_acon_compressor
 from .parallel_executor import ExecutionBatch, get_parallel_executor
 

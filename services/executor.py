@@ -289,7 +289,6 @@ class UserScopedExecutor:
         memory: UserScopedMemory,
         security_checker: Optional[SecurityChecker] = None,
         bifrost_client: Any = None,
-        enable_bifrost_execution: bool = False,
     ):
         """Initialize executor.
 
@@ -297,12 +296,10 @@ class UserScopedExecutor:
             memory: User-scoped memory service
             security_checker: Security checker (default SecurityChecker)
             bifrost_client: Optional Bifrost client for delegated execution
-            enable_bifrost_execution: Feature flag to delegate execution to Bifrost
         """
         self.memory = memory
         self.security = security_checker or SecurityChecker()
         self.bifrost_client = bifrost_client
-        self.enable_bifrost_execution = enable_bifrost_execution
 
     async def execute(
         self,
@@ -318,7 +315,7 @@ class UserScopedExecutor:
         Returns:
             ExecuteCodeResponse with results
         """
-        if self.enable_bifrost_execution and self.bifrost_client:
+        if self.bifrost_client:
             try:
                 return await self._execute_via_bifrost(user_ctx, request)
             except Exception as exc:
@@ -517,62 +514,69 @@ class UserScopedExecutor:
         user_ctx: UserContext,
         request: ExecuteCodeRequest,
     ) -> ExecuteCodeResponse:
-        """Delegate execution to Bifrost executor adapter (feature-flagged).
-
-        This uses a minimal GraphQL mutation shape; adjust to match the live
-        Bifrost schema when available.
-        """
+        """Delegate execution to Bifrost via executeTool mutation (with fallback)."""
         mutation = """
-        mutation ExecuteCode(
-          $userId: ID!,
-          $deviceId: ID,
-          $sessionId: ID,
-          $projectId: ID,
-          $code: String!,
-          $language: String!,
-          $timeout: Int
+        mutation ExecuteTool(
+          $toolId: ID!,
+          $parameters: String!,
+          $context: String
         ) {
-          executeCode(
-            userId: $userId,
-            deviceId: $deviceId,
-            sessionId: $sessionId,
-            projectId: $projectId,
-            code: $code,
-            language: $language,
-            timeout: $timeout
-          ) {
-            executionId
-            status
+          executeTool(input: {
+            toolId: $toolId,
+            parameters: $parameters,
+            context: $context
+          }) {
+            success
+            toolId
             output
             error
-            result
-            executionTimeMs
+            executionTime
+            metadata
           }
         }
         """
 
-        variables = {
-            "userId": user_ctx.user_id,
-            "deviceId": user_ctx.device_id or user_ctx.metadata.get("device_id"),
-            "sessionId": user_ctx.session_id or user_ctx.metadata.get("session_id"),
-            "projectId": user_ctx.project_id
+        import json
+
+        payload = {
+            "user_id": user_ctx.user_id,
+            "device_id": user_ctx.device_id or user_ctx.metadata.get("device_id"),
+            "session_id": user_ctx.session_id or user_ctx.metadata.get("session_id"),
+            "project_id": user_ctx.project_id
             or user_ctx.workspace_id
             or user_ctx.metadata.get("project_id"),
+            "cwd": user_ctx.cwd or user_ctx.metadata.get("cwd"),
             "code": request.code,
             "language": request.language.value,
             "timeout": request.timeout or self.DEFAULT_TIMEOUT,
+            "context": request.context or {},
+        }
+
+        parameters_json = json.dumps(payload)
+        context_json = json.dumps(user_ctx.context or user_ctx.metadata or {})
+
+        variables = {
+            "toolId": "execute_code",
+            "parameters": parameters_json,
+            "context": context_json,
         }
 
         data = await self.bifrost_client.mutate(mutation, variables)
-        payload = data.get("executeCode", {})
+        result = data.get("executeTool", {}) if data else {}
+
+        status = (
+            ExecutionStatus.COMPLETED
+            if result.get("success")
+            else ExecutionStatus.FAILED
+        )
 
         return ExecuteCodeResponse(
-            execution_id=payload.get("executionId", str(uuid4())),
-            status=ExecutionStatus(payload.get("status", ExecutionStatus.FAILED.value)),
-            output=payload.get("output"),
-            error=payload.get("error"),
-            result=payload.get("result"),
-            execution_time_ms=payload.get("executionTimeMs", 0),
+            execution_id=str(uuid4()),
+            status=status,
+            output=result.get("output"),
+            error=result.get("error"),
+            result=result.get("metadata"),
+            execution_time_ms=result.get("executionTime", 0),
             variables=[],
         )
 
@@ -706,7 +710,6 @@ class UserScopedExecutor:
 def create_executor_service(
     memory: Optional[UserScopedMemory] = None,
     bifrost_client: Any = None,
-    enable_bifrost_execution: bool = False,
 ) -> UserScopedExecutor:
     """Factory function to create an executor service.
 
@@ -724,6 +727,5 @@ def create_executor_service(
         memory,
         security_checker=None,
         bifrost_client=bifrost_client,
-        enable_bifrost_execution=enable_bifrost_execution,
     )
     return executor

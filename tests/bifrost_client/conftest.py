@@ -24,7 +24,7 @@ def mock_http_response():
 @pytest.fixture
 async def bifrost_client_instance():
     """Create BifrostClient instance for testing."""
-    from smartcp.infrastructure.bifrost import BifrostClient
+    from infrastructure.bifrost.client import BifrostClient
 
     # Mock WebSocket connection
     with patch("smartcp.infrastructure.bifrost.client.GraphQLSubscriptionClient.connect") as mock_connect:

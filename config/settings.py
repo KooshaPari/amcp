@@ -165,9 +165,8 @@ class ServerSettings(BaseModel):
 class BifrostSettings(BaseModel):
     """Bifrost orchestration endpoint configuration."""
 
-    enabled: bool = Field(default=True, description="Enable Bifrost delegation")
     url: str = Field(
-        default="http://localhost:4000/graphql", description="Bifrost GraphQL endpoint"
+        default="http://localhost:8080/graphql", description="Bifrost GraphQL endpoint"
     )
     api_key: str = Field(default="", description="Bifrost API key (if required)")
     timeout_seconds: float = Field(

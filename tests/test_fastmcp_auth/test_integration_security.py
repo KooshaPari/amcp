@@ -18,7 +18,7 @@ from .conftest import _utcnow
 from fastmcp_auth.models import PKCEChallenge, Token
 from fastmcp_auth.cache import TokenCache
 from fastmcp_auth.providers import DCRProvider, PKCEProvider
-from smartcp.auth import FastMCPAuthEnhancedProvider
+from auth import FastMCPAuthEnhancedProvider
 
 
 # ============================================================================

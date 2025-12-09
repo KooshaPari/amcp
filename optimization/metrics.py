@@ -12,7 +12,7 @@ from typing import Any, Optional
 
 from .model_router import RoutingDecision
 from .context_compression import CompressionResult
-from .planning_strategy import PlanTree
+from .planning import PlanTree
 
 
 @dataclass

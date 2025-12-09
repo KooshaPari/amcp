@@ -1,4 +1,7 @@
-"""HTTP client for Bifrost API with retry and resilience patterns."""
+"""HTTP client for Bifrost API with retry and resilience patterns.
+
+Configuration values are centralized in config.bifrost and config.defaults modules.
+"""
 
 from typing import Any, Dict, List, Optional
 
@@ -24,6 +27,7 @@ from bifrost_extensions.models import (
     ToolRoutingDecision,
     UsageStats,
 )
+from config.bifrost import BifrostConnections, BifrostEndpoints, BifrostTimeouts
 
 tracer = trace.get_tracer(__name__)
 
@@ -47,10 +51,10 @@ class HTTPClient:
 
     def __init__(
         self,
-        base_url: str = "http://localhost:8000",
+        base_url: str = BifrostEndpoints.HTTP_SERVER_LOCAL,
         api_key: Optional[str] = None,
-        timeout: float = 30.0,
-        max_retries: int = 3,
+        timeout: float = BifrostTimeouts.DEFAULT_REQUEST,
+        max_retries: int = BifrostConnections.MAX_RETRIES,
     ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -60,7 +64,10 @@ class HTTPClient:
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=httpx.Timeout(timeout),
-            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+            limits=httpx.Limits(
+                max_connections=BifrostConnections.MAX_CONNECTIONS,
+                max_keepalive_connections=BifrostConnections.MAX_KEEPALIVE_CONNECTIONS,
+            ),
         )
 
     async def close(self):

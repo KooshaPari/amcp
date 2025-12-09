@@ -1,4 +1,6 @@
-# CORRECT 3-Microservice Architecture for SmartCP Platform
+# CORRECT 3-Microservice Architecture for SmartCP Platform (Deprecated)
+
+> This document is retained for history. The authoritative architecture is now in `ARCHITECTURE.md` / `ARCHITECTURE_SUMMARY.md` (stateless SmartCP, Bifrost as sole resource gateway, Supabase pgvector default, optional local Postgres/pgvectorscale, no default Qdrant).
 
 **Version:** 1.0
 **Date:** December 3, 2024

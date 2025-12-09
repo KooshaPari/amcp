@@ -1,87 +1,42 @@
 """
 DSL Scope System for SmartCP
 
-This module implements a complete 11-level scope hierarchy for the Python DSL:
-- BLOCK: Function/block-local scope
-- ITERATION: Single iteration scope
-- TOOL_CALL: Single tool invocation scope
-- PROMPT_CHAIN: Multi-turn conversation scope
-- SESSION: Entire CLI session scope
-- PHASE: Session phase scope (plan/docwrite/impl)
-- PROJECT: Project scope (can be inferred)
-- WORKSPACE: Workspace scope
-- ORGANIZATION: Organization scope
-- GLOBAL: Cross-session shared scope
-- PERMANENT: Forever-persisted scope
-
-Features:
-- Scoped variable persistence (in-memory → Redis → Supabase)
-- Background task management (bg/await pattern)
-- Project/workspace/org inference from chat
-- Type system with contracts
-- Extension CRUD
-- Scope-aware context managers
+11-level scope hierarchy for Python DSL with scoped variable persistence,
+background task management, and project/workspace/org inference.
 """
 
-from .scope_levels import ScopeLevel, ScopeHierarchy, ScopeEntry
-from .storage import ScopeStorage
-from .context_tracking import (
-    ContextManager,
+from .core import (
+    # Main exports
+    get_dsl_scope_system,
+    DSLScopeSystem,
+    ScopeLevel,
     ScopeContext,
-    _current_session_id,
-    _current_prompt_chain_id,
-    _current_tool_call_id,
-    _current_iteration_id,
-    _current_phase_id,
-    _current_project_id,
-    _current_workspace_id,
-    _current_organization_id,
-)
-from .background_tasks import (
+    ContextManager,
     BackgroundTaskManager,
     BackgroundTask,
     TaskStatus,
-)
-from .dsl_system import DSLScopeSystem, get_dsl_scope_system
-from .project_inference import (
+    ScopeStorage,
     ProjectInferenceEngine,
     InferredContext,
     get_inference_engine,
+    ComprehensiveScopeInferenceEngine,
+    InferenceSignal,
 )
-from .inference_engine import ComprehensiveScopeInferenceEngine
-from .inference.types import InferenceSignal
 
 __all__ = [
-    # Scope levels
+    "get_dsl_scope_system",
+    "DSLScopeSystem",
     "ScopeLevel",
-    "ScopeHierarchy",
-    "ScopeEntry",
-
-    # Storage
-    "ScopeStorage",
-
-    # Context tracking
-    "ContextManager",
     "ScopeContext",
-
-    # Background tasks
+    "ContextManager",
     "BackgroundTaskManager",
     "BackgroundTask",
     "TaskStatus",
-
-    # Main system
-    "DSLScopeSystem",
-    "get_dsl_scope_system",
-
-    # Project inference
+    "ScopeStorage",
     "ProjectInferenceEngine",
     "InferredContext",
     "get_inference_engine",
-
-    # Comprehensive scope inference
     "ComprehensiveScopeInferenceEngine",
-
-    # Inference types
     "InferenceSignal",
 ]
 

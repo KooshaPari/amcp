@@ -38,11 +38,11 @@ from .forgetting import (
     TemporalDecay,
     RelevancePruning,
 )
-from .integration import (
-    MemorySystem,
-    MemoryConfig,
-    MemoryStats,
-)
+from .integration.system import MemorySystem
+from .integration.config import MemoryConfig
+from .integration.stats import MemoryStats
+from .integration.cleanup import MemoryCleanup
+from .integration.operations import MemoryOperations
 
 __all__ = [
     # Episodic
@@ -69,4 +69,6 @@ __all__ = [
     "MemorySystem",
     "MemoryConfig",
     "MemoryStats",
+    "MemoryCleanup",
+    "MemoryOperations",
 ]

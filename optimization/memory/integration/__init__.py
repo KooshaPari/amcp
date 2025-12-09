@@ -1,10 +1,6 @@
-"""
-Memory System Integration
+"""Memory System Integration.
 
-Unified interface for managing episodic, semantic, and working memory systems.
-
-This module provides backward compatibility by re-exporting all components
-from the decomposed submodules.
+Unified memory system coordinating episodic, semantic, and working memory.
 """
 
 from .cleanup import MemoryCleanup
@@ -14,9 +10,9 @@ from .stats import MemoryStats
 from .system import MemorySystem
 
 __all__ = [
+    "MemoryCleanup",
     "MemoryConfig",
+    "MemoryOperations",
     "MemoryStats",
     "MemorySystem",
-    "MemoryOperations",
-    "MemoryCleanup",
 ]

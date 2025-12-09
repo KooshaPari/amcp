@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from neo4j_storage_adapter import (
+from neo4j_adapter import (
     Neo4jConnectionState,
     QueryResult,
 )

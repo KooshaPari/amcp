@@ -1,11 +1,13 @@
-"""
-E2E test fixtures for live service testing.
+"""E2E test fixtures for live service testing.
 
 Provides fixtures for testing all services running together locally:
 - Bifrost Gateway (localhost:8000)
 - Go GraphQL Backend (localhost:8080)
 - MLX gRPC Service (localhost:8001)
 - SmartCP MCP Server
+
+Note: Common fixtures like event_loop are imported from tests/fixtures via
+root conftest.py. This module provides E2E-specific fixtures only.
 """
 
 import asyncio
@@ -21,14 +23,6 @@ GRAPHQL_URL = os.getenv("E2E_GRAPHQL_URL", "http://localhost:8080/graphql")
 GRPC_URL = os.getenv("E2E_GRPC_URL", "localhost:8001")
 SMARTCP_STDIO = os.getenv("E2E_SMARTCP_STDIO", "true")
 TIMEOUT = int(os.getenv("E2E_TIMEOUT", "30"))
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="session")
@@ -51,7 +45,7 @@ async def http_client() -> AsyncGenerator[httpx.AsyncClient, None]:
 @pytest.fixture
 async def bifrost_client(wait_for_services, http_client):
     """Provide Bifrost Gateway client."""
-    from smartcp.infrastructure.bifrost import BifrostClient
+    from infrastructure.bifrost.client import BifrostClient
 
     client = BifrostClient(url=BIFROST_URL, timeout=TIMEOUT)
     await client.connect()

@@ -1,6 +1,6 @@
 """Tests for Cypher query builder."""
 
-from neo4j_storage_adapter import CypherQueryBuilder
+from neo4j_adapter import CypherQueryBuilder
 
 
 class TestCypherQueryBuilder:

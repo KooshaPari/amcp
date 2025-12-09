@@ -7,7 +7,7 @@ Tests client initialization with various configurations.
 import pytest
 from unittest.mock import patch
 
-from smartcp.infrastructure.bifrost import BifrostClient
+from infrastructure.bifrost.client import BifrostClient
 
 
 class TestBifrostClientInit:

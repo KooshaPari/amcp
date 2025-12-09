@@ -1,6 +1,6 @@
 """Tests for Entity and Relationship models."""
 
-from neo4j_storage_adapter import Entity, Relationship
+from neo4j_adapter import Entity, Relationship
 from .conftest import _utcnow
 
 

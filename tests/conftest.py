@@ -1,4 +1,11 @@
-"""Pytest configuration and shared fixtures for SmartCP tests."""
+"""Pytest configuration and shared fixtures for SmartCP tests.
+
+This module provides:
+- pytest configuration and path setup
+- Common asyncio event loop fixtures
+- Test markers and custom hooks
+- Imports from centralized fixtures in tests/fixtures/
+"""
 
 import pytest
 import asyncio
@@ -13,7 +20,11 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 # Register pytest-asyncio plugin
-pytest_plugins = ['pytest_asyncio']
+pytest_plugins = ["pytest_asyncio"]
+
+# Import consolidated fixtures from fixtures submodule
+# This makes all fixture modules available to tests
+pytest_plugins += ["tests.fixtures"]
 
 
 def pytest_configure(config):
@@ -22,10 +33,12 @@ def pytest_configure(config):
     project_root = Path(__file__).parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    
-    config.addinivalue_line(
-        "markers", "asyncio: mark test as asyncio"
-    )
+
+    config.addinivalue_line("markers", "asyncio: mark test as asyncio")
+    config.addinivalue_line("markers", "smoke: mark test as smoke test (fast)")
+    config.addinivalue_line("markers", "slow: mark test as slow")
+    config.addinivalue_line("markers", "integration: mark test as integration test")
+    config.addinivalue_line("markers", "performance: mark test as performance test")
 
 
 @pytest.fixture
@@ -36,7 +49,11 @@ def anyio_backend():
 
 @pytest.fixture(scope="function")
 def event_loop():
-    """Create an instance of the default event loop for each test case."""
+    """Create an instance of the default event loop for each test case.
+
+    This fixture is used by all async tests. It creates a fresh event loop
+    for each test and cleans it up afterward.
+    """
     policy = asyncio.get_event_loop_policy()
     loop = policy.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -45,8 +62,8 @@ def event_loop():
 
 
 def pytest_pyfunc_call(pyfuncitem):
-    """
-    Wrapper for running async tests.
+    """Wrapper for running async tests.
+
     This allows @pytest.mark.asyncio tests to run without the pytest-asyncio plugin.
     """
     if pyfuncitem.get_closest_marker("asyncio"):
