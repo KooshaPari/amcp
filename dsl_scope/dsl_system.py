@@ -6,7 +6,7 @@ into a single coherent system.
 """
 
 import logging
-from typing import Optional, Any
+from typing import Optional, Any, Callable
 from dsl_scope.scope_levels import ScopeLevel, ScopeHierarchy
 from dsl_scope.context_tracking import ContextManager, ScopeContext
 from dsl_scope.storage import ScopeStorage

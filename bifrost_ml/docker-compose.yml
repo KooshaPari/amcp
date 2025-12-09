@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  bifrost-ml:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bifrost-ml
+    ports:
+      - "8001:8001"  # HTTP (FastAPI)
+      - "50051:50051"  # gRPC
+    environment:
+      - PORT=8001
+      - GRPC_PORT=50051
+      - LOG_LEVEL=INFO
+      - DEFAULT_MODEL=claude-sonnet-4
+      - OPTIMIZE_FOR=balanced
+      - MAX_COST_PER_REQUEST_USD=0.10
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped

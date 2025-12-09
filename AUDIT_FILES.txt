@@ -1,0 +1,140 @@
+DEPRECATED CODE AUDIT - GENERATED DOCUMENTATION
+================================================
+
+Date: 2025-12-09
+Status: AUDIT COMPLETE - Ready for Implementation
+
+GENERATED DOCUMENTS (4 files):
+=============================
+
+1. AUDIT_SUMMARY.md
+   - Executive summary and overview
+   - Quick facts and key findings
+   - Risk assessment (LOW RISK)
+   - Implementation roadmap
+   - Before/after comparison
+
+2. DEPRECATED_CODE_AUDIT_REPORT.md
+   - Comprehensive technical audit
+   - Detailed findings for each deprecated module
+   - Dependency mapping
+   - Usage analysis
+   - Removal safety assessment
+   - Pre-removal verification checklist
+
+3. DEPRECATED_CODE_REMOVAL_CHECKLIST.md
+   - Step-by-step implementation guide
+   - Phase 1: Update 11 production files
+   - Phase 2: Update 2 module __init__.py files
+   - Phase 3: Update 8 test/example files
+   - Phase 4: Delete 6 deprecated shim files
+   - Phase 5: Verification & testing
+   - Pre/post-removal validation
+   - Rollback instructions
+
+4. DEPRECATED_IMPORT_MAPPING.md
+   - Quick reference for import changes
+   - 6 import mapping tables
+   - Affected files for each mapping
+   - Batch update commands
+   - Verification commands
+   - Rollback instructions
+
+FINDINGS SUMMARY:
+=================
+
+DEPRECATED SHIMS (6 files - 283 lines total):
+1. capability_detector.py (23 lines) → import from capability_detection/
+2. quantization_optimizer.py (29 lines) → import from quantization/
+3. nats_integration.py (45 lines) → import from nats/
+4. selection_service.py (63 lines) → import from selection/
+5. provider_recommender.py (64 lines) → import from provider_recommendations/
+6. streaming.py (59 lines) → import from streaming/
+
+ACTIVE CODE (DO NOT REMOVE):
+1. sdk_wrapper.py (569 lines) - Phase 2 SDK Integration (ACTIVE FEATURE)
+2. main.py (252 lines) - SmartCP MCP Frontend (CLEAN CODE)
+
+PRODUCTION FILES NEEDING IMPORT UPDATES (11 files):
+===================================================
+
+Quantization Optimizer imports (4 files):
+- router_core/routing/adaptive/selector.py
+- router_core/routing/adaptive/router.py
+- router_core/domain/services/optimization_service.py
+- router_core/domain/services/selection/simple_strategy.py
+
+Capability Detector imports (1 file):
+- router_core/domain/services/model_discovery_service.py
+
+NATS Integration imports (1 file):
+- router_core/monitoring/sentinel.py
+
+Provider Recommender imports (5 files):
+- router_core/catalog/__init__.py
+- router_core/catalog/byzantine_selector.py
+- router_core/adapters/http/admin/catalog_routes.py
+- router_core/application/di_container.py
+- router_core/domain/services/selection/simple_strategy.py
+
+Selection Service imports (2 files):
+- router_core/routing/selector_factory.py
+- router_core/startup/health_checks.py
+
+MODULE INIT FILES NEEDING UPDATES (2 files):
+=============================================
+- router_core/domain/services/__init__.py
+- router_core/infrastructure/__init__.py
+
+TEST FILES NEEDING IMPORT UPDATES (8 files):
+=============================================
+- router/tests/test_model_discovery.py
+- router/tests/unit/test_recommender.py
+- router/tests/integration/test_phase2_simple.py
+- router/tests/validation/test_performance_requirements.py
+- router/tests/scripts/final_pipeline_demo.py
+- router/examples/model_discovery_example.py
+- router/benchmarks/benchmark_suite.py
+
+NOTE: SDK integration tests (phase2_sdk/test_*.py files) import from
+      sdk_wrapper.py which is ACTIVE (not deprecated) - do NOT modify
+
+AUDIT METRICS:
+==============
+- Files Audited: 8
+- Deprecated Shims Found: 6
+- Total Deprecated Lines: 283 lines
+- Deprecated Code Type: 100% pure re-export wrappers
+- Active Features: 1 (sdk_wrapper.py - do not remove)
+- Production Files Using Deprecated Code: 11
+- Test Files Using Deprecated Code: 8
+- Total Import Mappings: 6 shim → 6 submodule
+- Removal Risk Level: LOW (pure re-exports only)
+- Estimated Removal Time: 1-2 hours
+
+QUICK START:
+============
+
+1. READ: AUDIT_SUMMARY.md (5 min overview)
+2. REFERENCE: DEPRECATED_IMPORT_MAPPING.md (quick lookup)
+3. FOLLOW: DEPRECATED_CODE_REMOVAL_CHECKLIST.md (step-by-step)
+4. DEEP DIVE: DEPRECATED_CODE_AUDIT_REPORT.md (technical details)
+
+KEY TAKEAWAYS:
+==============
+
+✅ All deprecated shims are 100% re-export wrappers (zero business logic)
+✅ All actual implementations exist in submodules (fully functional)
+✅ All callers can be updated mechanically (simple search-replace)
+✅ No breaking changes to production behavior
+✅ Removal is safe and low-risk
+✅ Import path changes are one-to-one mappings
+✅ Full rollback available via git restore
+
+RECOMMENDATION:
+===============
+
+APPROVED FOR REMOVAL after updating imports following the checklist.
+
+Status: READY FOR IMPLEMENTATION
+

@@ -12,7 +12,8 @@ from auth.context import UserContextProvider
 from auth.middleware import AuthMiddleware, create_auth_middleware
 from auth.token import JWTConfig, TokenValidator, create_token_validator
 from config.settings import SmartCPSettings, get_settings
-from infrastructure.state_adapter import StateAdapter, create_state_adapter
+from smartcp.infrastructure.state import StateAdapter, create_state_adapter
+from smartcp.bifrost_client import BifrostClient, BifrostClientConfig
 from middleware.resource_access_enforcement import (
     ResourceAccessEnforcementMiddleware,
 )
@@ -50,6 +51,7 @@ class SmartCPServer:
         self,
         settings: SmartCPSettings,
         mcp: Any,
+        bifrost_client: Optional[BifrostClient],
         state: StateAdapter,
         memory: UserScopedMemory,
         executor: UserScopedExecutor,
@@ -67,6 +69,7 @@ class SmartCPServer:
         """
         self.settings = settings
         self.mcp = mcp
+        self.bifrost_client = bifrost_client
         self.state = state
         self.memory = memory
         self.executor = executor
@@ -128,13 +131,12 @@ class SmartCPServer:
 
         @fastapi_app.get("/ready")
         async def readiness_check():
-            # Check backend connectivity via state adapter (delegates to Bifrost)
-            try:
-                # Perform a simple state operation to verify connectivity
-                result = await self.state.list(user_ctx=None)
-                backend_status = "connected"
-            except Exception:
-                backend_status = "disconnected"
+            backend_status = "unknown"
+            if self.bifrost_client:
+                healthy = await self.bifrost_client.health()
+                backend_status = "connected" if healthy else "disconnected"
+            else:
+                backend_status = "not_configured"
 
             return {
                 "status": "ready" if backend_status == "connected" else "degraded",
@@ -209,12 +211,27 @@ class SmartCPServer:
         )
 
         # Create infrastructure
+        bifrost_config = BifrostClientConfig(
+            url=settings.bifrost.url,
+            api_key=settings.bifrost.api_key or os.environ.get("BIFROST_API_KEY"),
+            timeout_seconds=settings.bifrost.timeout_seconds,
+        )
+        bifrost_client = BifrostClient(bifrost_config) if settings.bifrost.enabled else None
+
         # StateAdapter delegates to Bifrost for all storage operations
-        state = create_state_adapter()
+        state = create_state_adapter(
+            bifrost_client=bifrost_client, use_memory=not settings.bifrost.enabled
+        )
 
         # Create services
         memory = create_memory_service(state_adapter=state)
-        executor = create_executor_service(memory=memory)
+        executor = create_executor_service(
+            memory=memory,
+            bifrost_client=bifrost_client,
+            enable_bifrost_execution=bool(
+                os.environ.get("BIFROST_EXECUTION_ENABLED", "").lower() in {"1", "true", "yes"}
+            ),
+        )
 
         # Create auth - use defaults if not configured
         token_validator = create_token_validator(
@@ -227,6 +244,7 @@ class SmartCPServer:
         return cls(
             settings=settings,
             mcp=mcp,
+            bifrost_client=bifrost_client,
             state=state,
             memory=memory,
             executor=executor,

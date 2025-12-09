@@ -1,0 +1,222 @@
+version: '3.8'
+
+services:
+  # OPTIONAL: Local PostgreSQL (enable with profile: local-postgres)
+  postgres:
+    profiles: ["local-postgres"]
+    image: postgres:16-alpine
+    container_name: smartcp-postgres
+    environment:
+      POSTGRES_DB: smartcp
+      POSTGRES_USER: smartcp_user
+      POSTGRES_PASSWORD: smartcp_dev_password
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartcp_user -d smartcp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartcp-network
+
+  # OPTIONAL: Local Redis (enable with profile: local-redis)
+  redis:
+    profiles: ["local-redis"]
+    image: redis:7-alpine
+    container_name: smartcp-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - smartcp-network
+
+  # SmartCP FastMCP Server (stateless; delegates to Bifrost)
+  smartcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartcp-mcp
+    environment:
+      # Bifrost endpoint (cloud or local)
+      BIFROST_URL: ${BIFROST_URL:-http://bifrost-api:8001/graphql}
+      BIFROST_API_KEY: ${BIFROST_API_KEY:-}
+
+      # Supabase (cloud default; required for auth/JWT)
+      SUPABASE_URL: ${SUPABASE_URL:-https://your-project.supabase.co}
+      SUPABASE_KEY: ${SUPABASE_KEY:-}
+
+      # Auth (dev keys)
+      JWT_SECRET: dev_jwt_secret_change_in_production
+      JWT_ALGORITHM: HS256
+
+      # API Keys (dev)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+
+      # Service URLs
+      BIFROST_API_URL: ${BIFROST_URL:-http://bifrost-api:8001/graphql}
+      BIFROST_BACKEND_URL: http://bifrost-backend:8080
+
+      # App Config
+      LOG_LEVEL: DEBUG
+      ENABLE_CACHING: "true"
+      RATE_LIMIT: 100
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - smartcp-network
+    restart: unless-stopped
+
+  # Bifrost HTTP API (Python FastAPI)
+  bifrost-api:
+    build:
+      context: .
+      dockerfile: bifrost_api/Dockerfile
+    container_name: smartcp-bifrost-api
+    environment:
+      # Primary DB/vector (cloud-first)
+      DATABASE_URL: ${SUPABASE_URL:-https://your-project.supabase.co}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+
+      # Redis (cloud-first; optional local)
+      REDIS_URL: ${REDIS_URL:-}
+
+      # Service URLs
+      BIFROST_BACKEND_URL: http://bifrost-backend:8080
+      SMARTCP_URL: http://smartcp:8000
+
+      # Auth
+      JWT_SECRET: dev_jwt_secret_change_in_production
+
+      # App Config
+      LOG_LEVEL: DEBUG
+    ports:
+      - "8001:8001"
+    depends_on:
+      bifrost-backend:
+        condition: service_started
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - smartcp-network
+    restart: unless-stopped
+
+  # Bifrost Backend (Go GraphQL)
+  bifrost-backend:
+    build:
+      context: .
+      dockerfile: bifrost_backend/Dockerfile
+    container_name: smartcp-bifrost-backend
+    environment:
+      # Database (cloud-first Supabase; optional local Postgres when profile enabled)
+      DATABASE_URL: ${SUPABASE_URL:-https://your-project.supabase.co}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+
+      # Redis (cloud-first; optional local)
+      REDIS_URL: ${REDIS_URL:-}
+
+      # gRPC Config
+      GRPC_PORT: 9090
+
+      # GraphQL Config
+      GRAPHQL_PORT: 8080
+      GRAPHQL_PLAYGROUND: "true"
+
+      # App Config
+      LOG_LEVEL: DEBUG
+    ports:
+      - "8080:8080"  # GraphQL HTTP
+      - "9090:9090"  # gRPC
+    depends_on: []
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - smartcp-network
+    restart: unless-stopped
+
+  # Bifrost ML Service (Python MLX)
+  bifrost-ml:
+    build:
+      context: .
+      dockerfile: bifrost_extensions/Dockerfile.ml
+    container_name: smartcp-bifrost-ml
+    environment:
+      # Redis for caching
+      REDIS_URL: redis://redis:6379/3
+
+      # Model config
+      MODEL_CACHE_DIR: /app/models
+
+      # App Config
+      LOG_LEVEL: DEBUG
+    ports:
+      - "8002:8002"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ml_models:/app/models
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - smartcp-network
+    restart: unless-stopped
+    # Uncomment for Apple Silicon GPU access
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: gpu
+    #           count: 1
+
+networks:
+  smartcp-network:
+    driver: bridge
+    name: smartcp-local
+
+volumes:
+  postgres_data:
+    name: smartcp-postgres-data
+  redis_data:
+    name: smartcp-redis-data
+  ml_models:
+    name: smartcp-ml-models

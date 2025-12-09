@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package ml_service;
+
+// ML Service for inference operations
+service MLService {
+  // Classify a prompt to determine task complexity and routing
+  rpc Classify(ClassifyRequest) returns (ClassifyResponse);
+
+  // Generate embeddings for text
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+
+  // Route a request to optimal model
+  rpc Route(RouteRequest) returns (RouteResponse);
+
+  // Health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message ClassifyRequest {
+  string prompt = 1;
+  map<string, string> context = 2;
+}
+
+message ClassifyResponse {
+  string complexity = 1;
+  double confidence = 2;
+  string tool_name = 3;
+  repeated Alternative alternatives = 4;
+
+  message Alternative {
+    string name = 1;
+    double score = 2;
+  }
+}
+
+message EmbedRequest {
+  repeated string texts = 1;
+  string model = 2;  // Optional model override
+}
+
+message EmbedResponse {
+  repeated Embedding embeddings = 1;
+  string model_used = 2;
+
+  message Embedding {
+    repeated float vector = 1;
+  }
+}
+
+message RouteRequest {
+  string prompt = 1;
+  map<string, string> context = 2;
+  int32 output_tokens_estimate = 3;
+}
+
+message RouteResponse {
+  string model = 1;
+  string complexity = 2;
+  double estimated_cost_usd = 3;
+  int32 estimated_latency_ms = 4;
+  string rationale = 5;
+  string fallback_model = 6;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string version = 2;
+  int64 uptime_seconds = 3;
+}

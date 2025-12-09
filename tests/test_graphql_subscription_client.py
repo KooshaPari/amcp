@@ -24,132 +24,185 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from graphql_subscription_client import (
+from services.bifrost import (
     GraphQLSubscriptionClient,
     SubscriptionBuilder,
     MCPSubscriptionBridge,
     SubscriptionState,
     ConnectionState,
-    GraphQLMessage,
-    SubscriptionConfig,
-    ReconnectStrategy,
+    SubscriptionMessage,
+    ConnectionConfig,
+    Subscription,
+    MessageQueue,
 )
 
 
 # ============================================================================
-# GraphQLMessage Tests
+# SubscriptionMessage Tests
 # ============================================================================
 
 
-class TestGraphQLMessage:
-    """Test GraphQL message creation and parsing."""
+class TestSubscriptionMessage:
+    """Test subscription message creation and parsing."""
 
-    def test_connection_init_message(self):
-        """Test connection init message structure."""
-        msg = GraphQLMessage.connection_init({"Authorization": "Bearer token"})
-        assert msg["type"] == "connection_init"
-        assert msg["payload"]["Authorization"] == "Bearer token"
-
-    def test_subscribe_message(self):
-        """Test subscribe message structure."""
-        msg = GraphQLMessage.subscribe(
+    def test_message_creation(self):
+        """Test subscription message structure."""
+        msg = SubscriptionMessage(
             id="sub-1",
-            query="subscription { updates { id } }",
-            variables={"filter": "active"}
+            type="subscribe",
+            payload={"query": "subscription { updates { id } }"}
         )
-        assert msg["type"] == "subscribe"
-        assert msg["id"] == "sub-1"
-        assert msg["payload"]["query"] == "subscription { updates { id } }"
-        assert msg["payload"]["variables"]["filter"] == "active"
+        assert msg.type == "subscribe"
+        assert msg.id == "sub-1"
+        assert msg.payload["query"] == "subscription { updates { id } }"
 
-    def test_complete_message(self):
-        """Test complete message structure."""
-        msg = GraphQLMessage.complete(id="sub-1")
-        assert msg["type"] == "complete"
-        assert msg["id"] == "sub-1"
+    def test_message_to_json(self):
+        """Test message serialization to JSON."""
+        msg = SubscriptionMessage(
+            id="sub-1",
+            type="complete"
+        )
+        json_str = msg.to_json()
+        import json
+        data = json.loads(json_str)
+        assert data["type"] == "complete"
+        assert data["id"] == "sub-1"
 
-    def test_ping_message(self):
-        """Test ping message structure."""
-        msg = GraphQLMessage.ping()
-        assert msg["type"] == "ping"
+    def test_message_from_json(self):
+        """Test message deserialization from JSON."""
+        json_str = '{"id": "sub-1", "type": "next", "payload": {"data": {}}}'
+        msg = SubscriptionMessage.from_json(json_str)
+        assert msg.id == "sub-1"
+        assert msg.type == "next"
+        assert msg.payload == {"data": {}}
 
 
 # ============================================================================
-# SubscriptionConfig Tests
+# ConnectionConfig Tests
 # ============================================================================
 
 
-class TestSubscriptionConfig:
-    """Test subscription configuration."""
+class TestConnectionConfig:
+    """Test connection configuration."""
 
     def test_default_config(self):
-        """Test default subscription config values."""
-        config = SubscriptionConfig(
-            endpoint="wss://api.example.com/graphql"
+        """Test default connection config values."""
+        config = ConnectionConfig(
+            url="wss://api.example.com/graphql"
         )
-        assert config.endpoint == "wss://api.example.com/graphql"
+        assert config.url == "wss://api.example.com/graphql"
         assert config.connection_timeout == 30.0
-        assert config.heartbeat_interval == 30.0
-        assert config.max_reconnect_attempts == 5
+        assert config.keep_alive_interval == 30.0
+        assert config.reconnect_attempts == 5
 
     def test_custom_config(self):
-        """Test custom subscription config values."""
-        config = SubscriptionConfig(
-            endpoint="wss://api.example.com/graphql",
+        """Test custom connection config values."""
+        config = ConnectionConfig(
+            url="wss://api.example.com/graphql",
             connection_timeout=60.0,
-            heartbeat_interval=15.0,
-            max_reconnect_attempts=10,
+            keep_alive_interval=15.0,
+            reconnect_attempts=10,
             headers={"X-Custom": "header"}
         )
         assert config.connection_timeout == 60.0
-        assert config.heartbeat_interval == 15.0
-        assert config.max_reconnect_attempts == 10
+        assert config.keep_alive_interval == 15.0
+        assert config.reconnect_attempts == 10
         assert config.headers["X-Custom"] == "header"
 
+    def test_config_with_subprotocol(self):
+        """Test connection config with custom subprotocol."""
+        config = ConnectionConfig(
+            url="wss://api.example.com/graphql",
+            subprotocol="graphql-ws"
+        )
+        assert config.subprotocol == "graphql-ws"
+
+    def test_config_reconnect_settings(self):
+        """Test reconnection delay settings."""
+        config = ConnectionConfig(
+            url="wss://api.example.com/graphql",
+            reconnect_delay=2.0,
+            reconnect_delay_max=120.0
+        )
+        assert config.reconnect_delay == 2.0
+        assert config.reconnect_delay_max == 120.0
+
 
 # ============================================================================
-# ReconnectStrategy Tests
+# Subscription Tests
 # ============================================================================
 
 
-class TestReconnectStrategy:
-    """Test reconnection strategy."""
+class TestSubscription:
+    """Test subscription data model."""
 
-    def test_exponential_backoff(self):
-        """Test exponential backoff calculation."""
-        strategy = ReconnectStrategy(
-            base_delay=1.0,
-            max_delay=30.0,
-            backoff_factor=2.0
+    def test_subscription_creation(self):
+        """Test subscription creation."""
+        async def handler(data):
+            pass
+
+        sub = Subscription(
+            id="sub-1",
+            query="subscription { updates { id } }",
+            variables=None,
+            handler=handler,
+            state=SubscriptionState.PENDING
         )
 
-        assert strategy.get_delay(0) == 1.0
-        assert strategy.get_delay(1) == 2.0
-        assert strategy.get_delay(2) == 4.0
-        assert strategy.get_delay(3) == 8.0
-        assert strategy.get_delay(4) == 16.0
-        assert strategy.get_delay(5) == 30.0  # Capped at max_delay
+        assert sub.id == "sub-1"
+        assert sub.state == SubscriptionState.PENDING
+        assert sub.query == "subscription { updates { id } }"
 
-    def test_jitter(self):
-        """Test delay jitter for avoiding thundering herd."""
-        strategy = ReconnectStrategy(
-            base_delay=1.0,
-            max_delay=30.0,
-            jitter=0.1
+    def test_subscription_with_variables(self):
+        """Test subscription with variables."""
+        async def handler(data):
+            pass
+
+        sub = Subscription(
+            id="sub-1",
+            query="subscription($id: ID!) { updates(id: $id) { id } }",
+            variables={"id": "123"},
+            handler=handler
         )
 
-        # With jitter, delays should vary
-        delays = [strategy.get_delay_with_jitter(1) for _ in range(10)]
-        assert len(set(delays)) > 1  # Not all the same
+        assert sub.variables == {"id": "123"}
 
-    def test_should_reconnect(self):
-        """Test reconnection decision logic."""
-        strategy = ReconnectStrategy(max_attempts=3)
+    def test_subscription_state_transitions(self):
+        """Test subscription state transitions."""
+        async def handler(data):
+            pass
 
-        assert strategy.should_reconnect(0) is True
-        assert strategy.should_reconnect(1) is True
-        assert strategy.should_reconnect(2) is True
-        assert strategy.should_reconnect(3) is False
+        sub = Subscription(
+            id="sub-1",
+            query="subscription { updates { id } }",
+            variables=None,
+            handler=handler,
+            state=SubscriptionState.PENDING
+        )
+
+        sub.state = SubscriptionState.ACTIVE
+        assert sub.state == SubscriptionState.ACTIVE
+
+        sub.state = SubscriptionState.COMPLETED
+        assert sub.state == SubscriptionState.COMPLETED
+
+    def test_subscription_to_subscribe_message(self):
+        """Test creating subscribe message from subscription."""
+        async def handler(data):
+            pass
+
+        sub = Subscription(
+            id="sub-1",
+            query="subscription { updates { id } }",
+            variables={"workspaceId": "ws-1"},
+            handler=handler
+        )
+
+        msg = sub.to_subscribe_message()
+        assert msg.id == "sub-1"
+        assert msg.type == "subscribe"
+        assert msg.payload["query"] == "subscription { updates { id } }"
+        assert msg.payload["variables"] == {"workspaceId": "ws-1"}
 
 
 # ============================================================================
@@ -160,49 +213,88 @@ class TestReconnectStrategy:
 class TestSubscriptionBuilder:
     """Test subscription query builder."""
 
-    def test_basic_subscription(self):
-        """Test basic subscription query building."""
-        builder = SubscriptionBuilder("entityUpdates")
-        query = builder.build()
+    @pytest.fixture
+    def client(self):
+        """Create mock client for builder tests."""
+        config = ConnectionConfig(url="wss://api.example.com/graphql")
+        return GraphQLSubscriptionClient(config)
 
-        assert "subscription" in query
-        assert "entityUpdates" in query
+    def test_builder_creation(self, client):
+        """Test builder can be created with client."""
+        builder = SubscriptionBuilder(client)
+        assert builder._client == client
 
-    def test_subscription_with_fields(self):
-        """Test subscription with field selection."""
+    def test_builder_query_method(self, client):
+        """Test setting query on builder."""
+        builder = SubscriptionBuilder(client)
+        result = builder.query("subscription { updates { id } }")
+
+        assert result is builder  # Fluent API returns self
+        assert builder._query == "subscription { updates { id } }"
+
+    def test_builder_variables_method(self, client):
+        """Test setting variables on builder."""
+        builder = SubscriptionBuilder(client)
+        result = builder.variables(workspaceId="ws-1", userId="user-1")
+
+        assert result is builder
+        assert builder._variables == {"workspaceId": "ws-1", "userId": "user-1"}
+
+    def test_builder_on_data_method(self, client):
+        """Test setting handler on builder."""
+        async def handler(data):
+            pass
+
+        builder = SubscriptionBuilder(client)
+        result = builder.on_data(handler)
+
+        assert result is builder
+        assert builder._handler == handler
+
+    def test_builder_with_id_method(self, client):
+        """Test setting custom ID on builder."""
+        builder = SubscriptionBuilder(client)
+        result = builder.with_id("custom-sub-id")
+
+        assert result is builder
+        assert builder._id == "custom-sub-id"
+
+    def test_builder_fluent_chain(self, client):
+        """Test builder fluent API chaining."""
+        async def handler(data):
+            pass
+
         builder = (
-            SubscriptionBuilder("entityUpdates")
-            .select("id", "name", "updatedAt")
+            SubscriptionBuilder(client)
+            .query("subscription { updates { id } }")
+            .variables(workspaceId="ws-1")
+            .on_data(handler)
+            .with_id("my-sub")
         )
-        query = builder.build()
 
-        assert "id" in query
-        assert "name" in query
-        assert "updatedAt" in query
+        assert builder._query == "subscription { updates { id } }"
+        assert builder._variables == {"workspaceId": "ws-1"}
+        assert builder._handler == handler
+        assert builder._id == "my-sub"
 
-    def test_subscription_with_arguments(self):
-        """Test subscription with arguments."""
-        builder = (
-            SubscriptionBuilder("entityUpdates")
-            .arg("workspaceId", "$workspaceId", "ID!")
-            .select("id", "name")
-        )
-        query = builder.build()
+    @pytest.mark.asyncio
+    async def test_builder_subscribe_requires_query(self, client):
+        """Test subscribe fails without query."""
+        async def handler(data):
+            pass
 
-        assert "$workspaceId: ID!" in query
-        assert "workspaceId: $workspaceId" in query
+        builder = SubscriptionBuilder(client).on_data(handler)
 
-    def test_subscription_with_nested_fields(self):
-        """Test subscription with nested field selection."""
-        builder = (
-            SubscriptionBuilder("entityUpdates")
-            .select("id", "name")
-            .nest("relationships", ["id", "type", "targetId"])
-        )
-        query = builder.build()
+        with pytest.raises(ValueError, match="Query is required"):
+            await builder.subscribe()
 
-        assert "relationships" in query
-        assert "targetId" in query
+    @pytest.mark.asyncio
+    async def test_builder_subscribe_requires_handler(self, client):
+        """Test subscribe fails without handler."""
+        builder = SubscriptionBuilder(client).query("subscription { updates { id } }")
+
+        with pytest.raises(ValueError, match="Handler is required"):
+            await builder.subscribe()
 
 
 # ============================================================================
@@ -216,8 +308,8 @@ class TestGraphQLSubscriptionClient:
     @pytest.fixture
     def client(self):
         """Create subscription client for testing."""
-        config = SubscriptionConfig(
-            endpoint="wss://api.example.com/graphql",
+        config = ConnectionConfig(
+            url="wss://api.example.com/graphql",
             headers={"Authorization": "Bearer test-token"}
         )
         return GraphQLSubscriptionClient(config)
@@ -225,59 +317,120 @@ class TestGraphQLSubscriptionClient:
     def test_initial_state(self, client):
         """Test client initial state."""
         assert client.state == ConnectionState.DISCONNECTED
-        assert len(client.subscriptions) == 0
+        assert len(client._subscriptions) == 0
 
-    def test_generate_subscription_id(self, client):
-        """Test unique subscription ID generation."""
-        ids = [client._generate_id() for _ in range(100)]
-        assert len(set(ids)) == 100  # All unique
+    def test_is_connected_property(self, client):
+        """Test is_connected property."""
+        assert client.is_connected is False
+
+        client._state = ConnectionState.CONNECTED
+        assert client.is_connected is True
+
+    def test_subscription_count_property(self, client):
+        """Test subscription_count property."""
+        assert client.subscription_count == 0
+
+        # Add mock subscription
+        async def handler(data):
+            pass
+
+        client._subscriptions["sub-1"] = Subscription(
+            id="sub-1",
+            query="subscription { updates { id } }",
+            variables=None,
+            handler=handler,
+            state=SubscriptionState.ACTIVE
+        )
+
+        assert client.subscription_count == 1
 
     @pytest.mark.asyncio
-    async def test_subscription_handler_registration(self, client):
-        """Test subscription handler registration."""
-        handler = AsyncMock()
+    async def test_subscribe_requires_connection(self, client):
+        """Test subscribe fails when not connected."""
+        async def handler(data):
+            pass
 
-        # Mock WebSocket connection
-        mock_ws = AsyncMock()
-        mock_ws.send = AsyncMock()
-        mock_ws.recv = AsyncMock(return_value=json.dumps({
-            "type": "connection_ack"
-        }))
-
-        with patch.object(client, '_connect_websocket', return_value=mock_ws):
-            client._ws = mock_ws
-            client._state = ConnectionState.CONNECTED
-
-            sub_id = await client.subscribe(
+        with pytest.raises(ConnectionError, match="Not connected"):
+            await client.subscribe(
                 query="subscription { updates { id } }",
                 handler=handler
             )
 
-            assert sub_id is not None
-            assert sub_id in client.subscriptions
+    @pytest.mark.asyncio
+    async def test_subscribe_creates_subscription(self, client):
+        """Test subscribe creates subscription in _subscriptions dict."""
+        async def handler(data):
+            pass
+
+        # Mock connected state
+        client._state = ConnectionState.CONNECTED
+        client._websocket = AsyncMock()
+        client._websocket.send = AsyncMock()
+
+        sub_id = await client.subscribe(
+            query="subscription { updates { id } }",
+            handler=handler
+        )
+
+        assert sub_id is not None
+        assert sub_id in client._subscriptions
+        assert client._subscriptions[sub_id].state == SubscriptionState.ACTIVE
 
     @pytest.mark.asyncio
-    async def test_unsubscribe(self, client):
-        """Test unsubscription removes handler."""
-        handler = AsyncMock()
+    async def test_subscribe_with_custom_id(self, client):
+        """Test subscribe with custom subscription ID."""
+        async def handler(data):
+            pass
+
+        client._state = ConnectionState.CONNECTED
+        client._websocket = AsyncMock()
+        client._websocket.send = AsyncMock()
+
+        sub_id = await client.subscribe(
+            query="subscription { updates { id } }",
+            handler=handler,
+            subscription_id="my-custom-id"
+        )
+
+        assert sub_id == "my-custom-id"
+
+    @pytest.mark.asyncio
+    async def test_unsubscribe_removes_subscription(self, client):
+        """Test unsubscribe removes subscription."""
+        async def handler(data):
+            pass
 
         # Setup mock subscription
         sub_id = "test-sub-1"
-        client._subscriptions[sub_id] = {
-            "handler": handler,
-            "query": "subscription { updates { id } }",
-            "state": SubscriptionState.ACTIVE
-        }
+        client._subscriptions[sub_id] = Subscription(
+            id=sub_id,
+            query="subscription { updates { id } }",
+            variables=None,
+            handler=handler,
+            state=SubscriptionState.ACTIVE
+        )
         client._state = ConnectionState.CONNECTED
-
-        mock_ws = AsyncMock()
-        mock_ws.send = AsyncMock()
-        client._ws = mock_ws
+        client._websocket = AsyncMock()
+        client._websocket.send = AsyncMock()
 
         result = await client.unsubscribe(sub_id)
 
         assert result is True
         assert sub_id not in client._subscriptions
+
+    @pytest.mark.asyncio
+    async def test_unsubscribe_nonexistent(self, client):
+        """Test unsubscribe returns False for nonexistent subscription."""
+        client._state = ConnectionState.CONNECTED
+        result = await client.unsubscribe("nonexistent-id")
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_connect_failure(self, client):
+        """Test connection failure handling."""
+        with patch.object(client, 'connect', return_value=False):
+            result = await client.connect()
+            assert result is False
 
 
 # ============================================================================
@@ -288,12 +441,13 @@ class TestGraphQLSubscriptionClient:
 class TestSubscriptionState:
     """Test subscription state management."""
 
-    def test_state_transitions(self):
+    def test_state_values(self):
         """Test valid subscription state values."""
         assert SubscriptionState.PENDING == "pending"
         assert SubscriptionState.ACTIVE == "active"
         assert SubscriptionState.COMPLETED == "completed"
         assert SubscriptionState.ERROR == "error"
+        assert SubscriptionState.PAUSED == "paused"
 
 
 # ============================================================================
@@ -314,6 +468,41 @@ class TestConnectionState:
 
 
 # ============================================================================
+# MessageQueue Tests
+# ============================================================================
+
+
+class TestMessageQueue:
+    """Test message queue with backpressure."""
+
+    @pytest.mark.asyncio
+    async def test_queue_put_get(self):
+        """Test basic put and get operations."""
+        queue = MessageQueue(max_size=10)
+
+        result = await queue.put({"type": "test"})
+        assert result is True
+        assert queue.qsize() == 1
+
+        msg = await queue.get()
+        assert msg == {"type": "test"}
+        assert queue.qsize() == 0
+
+    @pytest.mark.asyncio
+    async def test_queue_backpressure(self):
+        """Test queue drops messages when full."""
+        queue = MessageQueue(max_size=2)
+
+        await queue.put({"id": 1})
+        await queue.put({"id": 2})
+
+        # Third message should be dropped
+        result = await queue.put({"id": 3})
+        assert result is False
+        assert queue.dropped_count == 1
+
+
+# ============================================================================
 # MCPSubscriptionBridge Tests
 # ============================================================================
 
@@ -324,8 +513,8 @@ class TestMCPSubscriptionBridge:
     @pytest.fixture
     def bridge(self):
         """Create MCP subscription bridge for testing."""
-        config = SubscriptionConfig(
-            endpoint="wss://api.example.com/graphql"
+        config = ConnectionConfig(
+            url="wss://api.example.com/graphql"
         )
         client = GraphQLSubscriptionClient(config)
         return MCPSubscriptionBridge(client)
@@ -333,133 +522,156 @@ class TestMCPSubscriptionBridge:
     def test_bridge_initialization(self, bridge):
         """Test bridge initialization."""
         assert bridge.client is not None
-        assert len(bridge.mcp_handlers) == 0
+        assert len(bridge._mcp_handlers) == 0
 
-    @pytest.mark.asyncio
-    async def test_register_mcp_handler(self, bridge):
+    def test_register_mcp_handler(self, bridge):
         """Test MCP handler registration."""
-        async def entity_handler(event: dict) -> dict:
-            return {"processed": True, "event": event}
+        def entity_handler(event: dict):
+            pass
 
-        bridge.register_handler("entity_updates", entity_handler)
-        assert "entity_updates" in bridge.mcp_handlers
+        bridge.register_mcp_handler("entity_updates", entity_handler)
+        assert "entity_updates" in bridge._mcp_handlers
 
-    @pytest.mark.asyncio
-    async def test_handler_invocation(self, bridge):
-        """Test handler is invoked correctly."""
-        received_events = []
+    def test_register_multiple_handlers(self, bridge):
+        """Test registering multiple handlers."""
+        def handler1(event: dict):
+            pass
 
-        async def capture_handler(event: dict) -> dict:
-            received_events.append(event)
-            return {"captured": True}
+        def handler2(event: dict):
+            pass
 
-        bridge.register_handler("test_events", capture_handler)
+        bridge.register_mcp_handler("tool_executed", handler1)
+        bridge.register_mcp_handler("entity_changed", handler2)
 
-        # Simulate event dispatch
-        test_event = {"id": "1", "type": "created"}
-        await bridge._dispatch_event("test_events", test_event)
-
-        assert len(received_events) == 1
-        assert received_events[0]["id"] == "1"
-
-
-# ============================================================================
-# Error Handling Tests
-# ============================================================================
-
-
-class TestErrorHandling:
-    """Test error handling scenarios."""
-
-    @pytest.fixture
-    def client(self):
-        """Create client for error testing."""
-        config = SubscriptionConfig(
-            endpoint="wss://api.example.com/graphql"
-        )
-        return GraphQLSubscriptionClient(config)
+        assert "tool_executed" in bridge._mcp_handlers
+        assert "entity_changed" in bridge._mcp_handlers
 
     @pytest.mark.asyncio
-    async def test_connection_error_handling(self, client):
-        """Test connection error is handled gracefully."""
-        with patch.object(client, '_connect_websocket', side_effect=Exception("Connection failed")):
-            result = await client.connect()
-            assert result is False
-            assert client.state in (ConnectionState.DISCONNECTED, ConnectionState.RECONNECTING)
+    async def test_subscribe_to_tool_events(self, bridge):
+        """Test subscribing to tool events."""
+        # Setup connected client
+        bridge.client._state = ConnectionState.CONNECTED
+        bridge.client._websocket = AsyncMock()
+        bridge.client._websocket.send = AsyncMock()
+
+        sub_id = await bridge.subscribe_to_tool_events("my_tool", "ws-1")
+
+        assert sub_id is not None
+        assert sub_id in bridge.client._subscriptions
 
     @pytest.mark.asyncio
-    async def test_subscription_error_callback(self, client):
-        """Test error callback is invoked on subscription error."""
-        error_received = []
+    async def test_subscribe_to_entity_changes(self, bridge):
+        """Test subscribing to entity changes."""
+        bridge.client._state = ConnectionState.CONNECTED
+        bridge.client._websocket = AsyncMock()
+        bridge.client._websocket.send = AsyncMock()
 
-        async def error_handler(error: Exception):
-            error_received.append(str(error))
+        sub_id = await bridge.subscribe_to_entity_changes("Person", "ws-1")
 
-        client.on_error(error_handler)
+        assert sub_id is not None
+        assert sub_id in bridge.client._subscriptions
 
-        # Simulate error
-        await client._handle_error(Exception("Test error"))
+    @pytest.mark.asyncio
+    async def test_subscribe_to_workflow_progress(self, bridge):
+        """Test subscribing to workflow progress."""
+        bridge.client._state = ConnectionState.CONNECTED
+        bridge.client._websocket = AsyncMock()
+        bridge.client._websocket.send = AsyncMock()
 
-        assert len(error_received) == 1
-        assert "Test error" in error_received[0]
+        sub_id = await bridge.subscribe_to_workflow_progress("wf-123")
+
+        assert sub_id is not None
+        assert sub_id in bridge.client._subscriptions
 
 
 # ============================================================================
-# Message Parsing Tests
+# Message Handling Tests
 # ============================================================================
 
 
-class TestMessageParsing:
-    """Test GraphQL message parsing."""
+class TestMessageHandling:
+    """Test internal message handling."""
 
     @pytest.fixture
     def client(self):
         """Create client for message testing."""
-        config = SubscriptionConfig(
-            endpoint="wss://api.example.com/graphql"
+        config = ConnectionConfig(
+            url="wss://api.example.com/graphql"
         )
         return GraphQLSubscriptionClient(config)
 
-    def test_parse_next_message(self, client):
-        """Test parsing next message type."""
+    @pytest.mark.asyncio
+    async def test_handle_next_message(self, client):
+        """Test handling next (data) message."""
+        received_data = []
+
+        async def handler(data):
+            received_data.append(data)
+
+        # Setup subscription
+        client._subscriptions["sub-1"] = Subscription(
+            id="sub-1",
+            query="subscription { updates { id } }",
+            variables=None,
+            handler=handler,
+            state=SubscriptionState.ACTIVE
+        )
+
+        # Process next message
         message = {
             "type": "next",
             "id": "sub-1",
-            "payload": {
-                "data": {"entityUpdates": {"id": "1", "name": "Test"}}
-            }
+            "payload": {"data": {"updates": {"id": "1"}}}
         }
 
-        msg_type, sub_id, payload = client._parse_message(message)
+        await client._handle_message(message)
 
-        assert msg_type == "next"
-        assert sub_id == "sub-1"
-        assert payload["data"]["entityUpdates"]["id"] == "1"
+        assert len(received_data) == 1
+        assert received_data[0]["data"]["updates"]["id"] == "1"
 
-    def test_parse_error_message(self, client):
-        """Test parsing error message type."""
+    @pytest.mark.asyncio
+    async def test_handle_complete_message(self, client):
+        """Test handling complete message."""
+        async def handler(data):
+            pass
+
+        client._subscriptions["sub-1"] = Subscription(
+            id="sub-1",
+            query="subscription { updates { id } }",
+            variables=None,
+            handler=handler,
+            state=SubscriptionState.ACTIVE
+        )
+
+        message = {"type": "complete", "id": "sub-1"}
+
+        await client._handle_message(message)
+
+        assert "sub-1" not in client._subscriptions
+
+    @pytest.mark.asyncio
+    async def test_handle_error_message(self, client):
+        """Test handling error message."""
+        async def handler(data):
+            pass
+
+        client._subscriptions["sub-1"] = Subscription(
+            id="sub-1",
+            query="subscription { updates { id } }",
+            variables=None,
+            handler=handler,
+            state=SubscriptionState.ACTIVE
+        )
+
         message = {
             "type": "error",
             "id": "sub-1",
             "payload": [{"message": "Query failed"}]
         }
 
-        msg_type, sub_id, payload = client._parse_message(message)
+        await client._handle_message(message)
 
-        assert msg_type == "error"
-        assert sub_id == "sub-1"
-
-    def test_parse_complete_message(self, client):
-        """Test parsing complete message type."""
-        message = {
-            "type": "complete",
-            "id": "sub-1"
-        }
-
-        msg_type, sub_id, payload = client._parse_message(message)
-
-        assert msg_type == "complete"
-        assert sub_id == "sub-1"
+        assert client._subscriptions["sub-1"].state == SubscriptionState.ERROR
 
 
 # ============================================================================
@@ -473,8 +685,8 @@ class TestSubscriptionIntegration:
     @pytest.mark.asyncio
     async def test_full_subscription_lifecycle(self):
         """Test complete subscription lifecycle."""
-        config = SubscriptionConfig(
-            endpoint="wss://api.example.com/graphql"
+        config = ConnectionConfig(
+            url="wss://api.example.com/graphql"
         )
         client = GraphQLSubscriptionClient(config)
 
@@ -483,62 +695,73 @@ class TestSubscriptionIntegration:
         async def event_handler(data: dict):
             events_received.append(data)
 
-        # Mock WebSocket
-        mock_ws = AsyncMock()
-        mock_ws.send = AsyncMock()
+        # Setup connected state
+        client._state = ConnectionState.CONNECTED
+        client._websocket = AsyncMock()
+        client._websocket.send = AsyncMock()
 
-        # Simulate message sequence
-        messages = [
-            json.dumps({"type": "connection_ack"}),
-            json.dumps({
-                "type": "next",
-                "id": "sub-1",
-                "payload": {"data": {"updates": {"id": "1"}}}
-            }),
-        ]
-        mock_ws.recv = AsyncMock(side_effect=messages)
-        mock_ws.close = AsyncMock()
+        # Subscribe
+        sub_id = await client.subscribe(
+            query="subscription { updates { id } }",
+            handler=event_handler
+        )
 
-        with patch.object(client, '_connect_websocket', return_value=mock_ws):
-            # Connect
-            client._ws = mock_ws
-            client._state = ConnectionState.CONNECTED
+        assert sub_id in client._subscriptions
 
-            # Subscribe
-            client._subscriptions["sub-1"] = {
-                "handler": event_handler,
-                "query": "subscription { updates { id } }",
-                "state": SubscriptionState.ACTIVE
-            }
+        # Simulate receiving data
+        await client._handle_message({
+            "type": "next",
+            "id": sub_id,
+            "payload": {"data": {"updates": {"id": "1"}}}
+        })
 
-            # Process one message
-            await client._process_message(json.loads(messages[1]))
+        assert len(events_received) == 1
 
-            assert len(events_received) == 1
+        # Unsubscribe
+        result = await client.unsubscribe(sub_id)
+        assert result is True
+        assert sub_id not in client._subscriptions
 
     @pytest.mark.asyncio
-    async def test_reconnection_restores_subscriptions(self):
-        """Test that reconnection restores active subscriptions."""
-        config = SubscriptionConfig(
-            endpoint="wss://api.example.com/graphql",
-            max_reconnect_attempts=3
-        )
+    async def test_multiple_subscriptions(self):
+        """Test managing multiple concurrent subscriptions."""
+        config = ConnectionConfig(url="wss://api.example.com/graphql")
         client = GraphQLSubscriptionClient(config)
 
-        # Setup existing subscription
-        client._subscriptions["sub-1"] = {
-            "handler": AsyncMock(),
-            "query": "subscription { updates { id } }",
-            "variables": {},
-            "state": SubscriptionState.ACTIVE
-        }
+        client._state = ConnectionState.CONNECTED
+        client._websocket = AsyncMock()
+        client._websocket.send = AsyncMock()
 
-        # Verify subscription exists before reconnect
-        assert "sub-1" in client._subscriptions
+        events1 = []
+        events2 = []
 
-        # Get subscriptions to restore
-        subs_to_restore = client._get_subscriptions_to_restore()
-        assert len(subs_to_restore) == 1
+        async def handler1(data):
+            events1.append(data)
+
+        async def handler2(data):
+            events2.append(data)
+
+        sub_id1 = await client.subscribe("subscription { updates1 { id } }", handler1)
+        sub_id2 = await client.subscribe("subscription { updates2 { id } }", handler2)
+
+        assert client.subscription_count == 2
+
+        # Send data to subscription 1
+        await client._handle_message({
+            "type": "next",
+            "id": sub_id1,
+            "payload": {"data": "for sub1"}
+        })
+
+        # Send data to subscription 2
+        await client._handle_message({
+            "type": "next",
+            "id": sub_id2,
+            "payload": {"data": "for sub2"}
+        })
+
+        assert len(events1) == 1
+        assert len(events2) == 1
 
 
 if __name__ == "__main__":

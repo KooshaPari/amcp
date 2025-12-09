@@ -48,6 +48,7 @@ from dsl_scope.project_inference import (
     InferredContext,
     get_inference_engine,
 )
+from dsl_scope.inference import ComprehensiveScopeInferenceEngine
 
 __all__ = [
     # Scope levels
@@ -75,6 +76,9 @@ __all__ = [
     "ProjectInferenceEngine",
     "InferredContext",
     "get_inference_engine",
+    
+    # Comprehensive scope inference
+    "ComprehensiveScopeInferenceEngine",
 ]
 
 __version__ = "2.0.0"

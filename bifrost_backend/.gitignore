@@ -1,0 +1,41 @@
+# Binaries
+bifrost
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test and coverage
+*.test
+*.out
+coverage.html
+
+# Go workspace file
+go.work
+
+# Environment variables
+.env
+
+# Generated files
+internal/graph/generated.go
+internal/graph/model/models_gen.go
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/

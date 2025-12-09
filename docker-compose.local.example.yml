@@ -1,0 +1,136 @@
+# Example Docker Compose configuration for local E2E testing
+# Copy to docker-compose.local.yml and customize
+
+version: '3.8'
+
+services:
+  # Bifrost Gateway - HTTP routing and API
+  bifrost:
+    image: bifrost-gateway:latest
+    build:
+      context: ../Bifrost
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GRAPHQL_URL=http://graphql:8080
+      - GRPC_URL=grpc:8001
+      - LOG_LEVEL=INFO
+      - ENABLE_METRICS=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      - graphql
+      - grpc
+    networks:
+      - smartcp
+
+  # Go GraphQL Backend
+  graphql:
+    image: go-backend:latest
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/smartcp_test
+      - GRPC_URL=grpc:8001
+      - JWT_SECRET=test-secret-key
+      - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      - db
+      - grpc
+    networks:
+      - smartcp
+
+  # MLX gRPC Service
+  grpc:
+    image: mlx-service:latest
+    build:
+      context: ../mlx-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - MODEL_PATH=/models
+      - LOG_LEVEL=INFO
+      - ENABLE_HEALTH_CHECK=true
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:8001"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - ./models:/models:ro
+    networks:
+      - smartcp
+
+  # PostgreSQL Database (for testing)
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=smartcp_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - smartcp
+
+  # Optional: SmartCP HTTP endpoint
+  smartcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - BIFROST_URL=http://bifrost:8000
+      - GRAPHQL_URL=http://graphql:8080/graphql
+      - LOG_LEVEL=INFO
+    command: python server.py --http --port 8002
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      - bifrost
+    networks:
+      - smartcp
+
+  # Optional: Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - smartcp
+
+networks:
+  smartcp:
+    driver: bridge
+
+volumes:
+  postgres_data:

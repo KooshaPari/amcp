@@ -1,0 +1,359 @@
+{
+  "dashboard": {
+    "title": "Bifrost SDK Performance Metrics",
+    "tags": ["bifrost", "performance", "sdk"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Routing Latency Percentiles",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(bifrost_routing_latency_bucket[5m])) by (le))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(bifrost_routing_latency_bucket[5m])) by (le))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(bifrost_routing_latency_bucket[5m])) by (le))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Latency (ms)",
+            "format": "ms"
+          }
+        ],
+        "alert": {
+          "name": "High Routing Latency",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [50],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["B", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "message": "P95 routing latency exceeded 50ms threshold"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Request Throughput",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(bifrost_routing_requests_total[1m]))",
+            "legendFormat": "Total RPS",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(bifrost_routing_requests_total{status=\"success\"}[1m]))",
+            "legendFormat": "Success RPS",
+            "refId": "B"
+          },
+          {
+            "expr": "sum(rate(bifrost_routing_requests_total{status=\"error\"}[1m]))",
+            "legendFormat": "Error RPS",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Requests/sec",
+            "format": "reqps"
+          }
+        ],
+        "alert": {
+          "name": "Low Throughput",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [800],
+                "type": "lt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "message": "Throughput dropped below 800 RPS"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Memory Usage",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes{job=\"bifrost\"}",
+            "legendFormat": "Memory (bytes)",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Memory",
+            "format": "bytes"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "CPU Usage",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total{job=\"bifrost\"}[1m]) * 100",
+            "legendFormat": "CPU %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "CPU %",
+            "format": "percent",
+            "max": 100
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Tool Routing Latency",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(bifrost_tool_routing_latency_bucket[5m])) by (le))",
+            "legendFormat": "P95",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Latency (ms)",
+            "format": "ms"
+          }
+        ],
+        "alert": {
+          "name": "High Tool Routing Latency",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [10],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "message": "Tool routing P95 latency exceeded 10ms"
+        }
+      },
+      {
+        "id": 6,
+        "title": "Classification Latency",
+        "type": "graph",
+        "gridPos": {"x": 8, "y": 16, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(bifrost_classification_latency_bucket[5m])) by (le))",
+            "legendFormat": "P95",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Latency (ms)",
+            "format": "ms"
+          }
+        ],
+        "alert": {
+          "name": "High Classification Latency",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [5],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "message": "Classification P95 latency exceeded 5ms"
+        }
+      },
+      {
+        "id": 7,
+        "title": "Success Rate",
+        "type": "graph",
+        "gridPos": {"x": 16, "y": 16, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(rate(bifrost_routing_requests_total{status=\"success\"}[5m])) / sum(rate(bifrost_routing_requests_total[5m])) * 100",
+            "legendFormat": "Success Rate %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Success Rate",
+            "format": "percent",
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "alert": {
+          "name": "Low Success Rate",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [95],
+                "type": "lt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "message": "Success rate dropped below 95%"
+        }
+      },
+      {
+        "id": 8,
+        "title": "Concurrent Requests",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 22, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "bifrost_concurrent_requests",
+            "legendFormat": "Active Requests",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Concurrent Requests",
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Error Rate by Type",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 22, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(rate(bifrost_routing_errors_total[5m])) by (error_type)",
+            "legendFormat": "{{error_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Errors/sec",
+            "format": "reqps"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Request Duration Distribution",
+        "type": "heatmap",
+        "gridPos": {"x": 0, "y": 28, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(bifrost_routing_latency_bucket[1m])) by (le)",
+            "format": "heatmap",
+            "legendFormat": "{{le}}",
+            "refId": "A"
+          }
+        ],
+        "dataFormat": "tsbuckets"
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "iconColor": "rgba(255, 96, 96, 1)",
+          "name": "Alerts",
+          "type": "dashboard"
+        },
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=~\".*Bifrost.*\",alertstate=\"firing\"}",
+          "iconColor": "red",
+          "name": "Bifrost Alerts",
+          "tagKeys": "alertname",
+          "textFormat": "{{ alertname }}",
+          "titleFormat": "Alert"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,121 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smartcp"
+version = "1.0.0"
+description = "SmartCP MCP Server with resource access enforcement"
+requires-python = ">=3.10"
+dependencies = [
+    # Database & Storage
+    "asyncpg==0.30.0",
+    "psycopg[binary]>=3.1.0",
+    "sqlalchemy>=2.0.0",
+    "neo4j>=6.0.0",
+    "redis>=5.0.0",
+    "qdrant-client>=1.16.0",
+    "supabase>=2.0.0",
+    # Machine Learning & Routing
+    "mlx>=0.0.0",
+    "mlx-lm>=0.0.0",
+    "openai>=1.0.0",
+    "transformers>=4.40.0",
+    # Web & API
+    "fastapi>=0.121.3",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "fastmcp>=2.13.0",
+    "gql[aiohttp]>=3.0.0",
+    # Utilities & Tools
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.0",
+    "requests>=2.31.0",
+    "httpx>=0.25.0",
+    "tenacity>=8.2.0",
+    "voyageai>=0.2.0",
+    # Performance & Monitoring
+    "prometheus-client>=0.19.0",
+    "python-json-logger>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    # Development & Quality
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+    "pre-commit>=3.5.0",
+    # Development Tools
+    "ipython>=8.18.0",
+    "jupyter>=1.0.0",
+]
+
+[tool.setuptools]
+# Explicitly define packages to avoid flat-layout issues
+packages = [
+    "auth",
+    "bifrost",
+    "bifrost_api",
+    "bifrost_backend",
+    "bifrost_extensions",
+    "bifrost_ml",
+    "config",
+    "dsl_scope",
+    "fastmcp_auth",
+    "infrastructure",
+    "middleware",
+    "migrations",
+    "models",
+    "optimization",
+    "router",
+    "services",
+    "tools",
+    "usage",
+    "vibeproxy",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+# Resource access enforcement rules (Phase 5.1)
+# Ban direct database imports in smartcp/ (only allowed in bifrost-extensions)
+flake8-allowed-directives = [
+    # Ban these imports from smartcp/ (use bifrost_client instead)
+    "from supabase",
+    "from neo4j",
+    "import redis",
+    "import qdrant_client",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files can be more lenient
+"tests/**" = ["D", "F841", "F401"]
+
+# Bifrost-extensions are allowed to use these imports directly
+"bifrost_extensions/**" = []
+"bifrost/**" = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+
+[tool.isort]
+profile = "black"
+line_length = 100

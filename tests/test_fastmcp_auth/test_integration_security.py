@@ -17,7 +17,7 @@ from .conftest import _utcnow
 
 from fastmcp_auth.models import PKCEChallenge, Token
 from fastmcp_auth.cache import TokenCache
-from fastmcp_auth.fallback import OAuthProviderFallback
+from fastmcp_auth.providers import DCRProvider, PKCEProvider
 from smartcp.auth import FastMCPAuthEnhancedProvider
 
 
@@ -31,26 +31,23 @@ class TestAuthenticationIntegration:
 
     @pytest.mark.asyncio
     async def test_provider_fallback_tries_multiple_providers(self):
-        """Test fallback to alternate providers."""
-        cache = TokenCache()
-        providers = [
-            {
-                "type": "device_code",
-                "client_id": "client1",
-                "client_secret": "secret1",
-                "auth_server_url": "https://auth1.example.com",
-            },
-            {
-                "type": "device_code",
-                "client_id": "client2",
-                "client_secret": "secret2",
-                "auth_server_url": "https://auth2.example.com",
-            },
-        ]
+        """Test multiple provider instances can be created for fallback scenarios."""
+        # Create multiple DCRProvider instances to simulate fallback chain
+        provider1 = DCRProvider(
+            client_id="client1",
+            client_secret="secret1",
+            auth_server_url="https://auth1.example.com",
+        )
+        provider2 = DCRProvider(
+            client_id="client2",
+            client_secret="secret2",
+            auth_server_url="https://auth2.example.com",
+        )
 
-        fallback = OAuthProviderFallback(providers, cache)
-        # Fallback provider is created successfully
-        assert fallback is not None
+        # Both providers are created successfully
+        assert provider1 is not None
+        assert provider2 is not None
+        assert provider1.client_id != provider2.client_id
 
     @pytest.mark.asyncio
     async def test_cached_token_used_across_requests(self):

@@ -60,7 +60,7 @@ Phase 3 extends FastMCP 2.13 with production-grade authentication capabilities:
 Generates PKCE code verifier and challenge using S256 method.
 
 ```python
-from fastmcp_auth_enhancement import PKCEChallenge
+from smartcp.fastmcp_auth import PKCEChallenge
 
 # Generate new PKCE challenge
 challenge = PKCEChallenge.generate()
@@ -75,7 +75,7 @@ print(challenge.code_challenge_method)  # "S256"
 OAuth token with expiry tracking and serialization.
 
 ```python
-from fastmcp_auth_enhancement import Token
+from smartcp.fastmcp_auth import Token
 
 token = Token(
     access_token="eyJ...",
@@ -98,7 +98,7 @@ token_dict = token.to_dict()
 Secure token caching with memory and file storage.
 
 ```python
-from fastmcp_auth_enhancement import TokenCache
+from smartcp.fastmcp_auth import TokenCache
 
 cache = TokenCache(cache_dir=".mcp_token_cache")
 
@@ -123,7 +123,7 @@ await cache.clear("user_123")
 Implements OAuth 2.0 Device Authorization Grant (RFC 8628).
 
 ```python
-from fastmcp_auth_enhancement import DCRProvider
+from smartcp.fastmcp_auth import DCRProvider
 
 dcr = DCRProvider(
     client_id="your_client_id",
@@ -153,7 +153,7 @@ token = await dcr.poll_for_token(device_code_response)
 Implements OAuth 2.0 Authorization Code Grant with PKCE.
 
 ```python
-from fastmcp_auth_enhancement import PKCEProvider
+from smartcp.fastmcp_auth import PKCEProvider
 
 pkce = PKCEProvider(
     client_id="your_client_id",
@@ -183,7 +183,7 @@ new_token = await pkce.refresh_token(token.refresh_token)
 Multi-provider support with automatic fallback.
 
 ```python
-from fastmcp_auth_enhancement import OAuthProviderFallback
+from smartcp.fastmcp_auth import OAuthProviderFallback
 
 fallback = OAuthProviderFallback(
     providers=[dcr_provider, pkce_provider],
@@ -236,7 +236,7 @@ server = create_smartcp_server_with_auth(
 
 ```python
 import asyncio
-from fastmcp_auth_enhancement import DCRProvider, TokenCache
+from smartcp.fastmcp_auth import DCRProvider, TokenCache
 
 async def cli_auth():
     # Initialize providers
@@ -278,7 +278,7 @@ if __name__ == "__main__":
 
 ```python
 from fastapi import FastAPI, Request
-from fastmcp_auth_enhancement import PKCEProvider, PKCEChallenge
+from smartcp.fastmcp_auth import PKCEProvider, PKCEChallenge
 import secrets
 
 app = FastAPI()
@@ -358,7 +358,7 @@ asyncio.run(server.start())
 ### Example 4: Provider Fallback with Multiple Auth Methods
 
 ```python
-from fastmcp_auth_enhancement import (
+from smartcp.fastmcp_auth import (
     DCRProvider, PKCEProvider, OAuthProviderFallback
 )
 
@@ -410,7 +410,7 @@ token = await fallback.authenticate()
 
 ## API Reference
 
-### fastmcp_auth_enhancement
+### smartcp.fastmcp_auth
 
 | Class | Description |
 |-------|-------------|
@@ -437,10 +437,10 @@ Run the Phase 3 tests:
 
 ```bash
 # Run all auth enhancement tests
-uv run pytest smartcp/tests/test_fastmcp_auth_enhancement.py -v
+uv run pytest smartcp/tests/fastmcp_auth/ -v
 
 # Run with async support (requires pytest-asyncio)
-uv run pytest smartcp/tests/test_fastmcp_auth_enhancement.py -v --asyncio-mode=auto
+uv run pytest smartcp/tests/fastmcp_auth/ -v --asyncio-mode=auto
 ```
 
 Test coverage includes:
@@ -517,6 +517,6 @@ Phase 3 is complete. Remaining phases:
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `fastmcp_auth_enhancement.py` | ~370 | Core auth module (DCR, PKCE, caching) |
+| `smartcp/fastmcp_auth/` | ~540 | Core auth module (DCR, PKCE, caching) |
 | `fastmcp_auth_provider.py` | ~220 | FastMCP integration layer |
 | `tests/test_fastmcp_auth_enhancement.py` | ~450 | Comprehensive test suite |

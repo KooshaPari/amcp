@@ -1,20 +1,18 @@
 """
-Main Application - Semantic Tool Router
+Main Application - SmartCP MCP Frontend
 
-FastAPI application for semantic tool routing with auto-discovery.
+FastAPI application delegating to Bifrost backend via GraphQL.
+SmartCP handles MCP protocol; Bifrost handles business logic.
 """
 
 import logging
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from contextlib import asynccontextmanager
 from typing import List, Optional
 
-from router import ArchRouter, ToolRegistry, TOOL_REGISTRY
-from services import DatabaseService, SearchService
-from services.database import DatabaseConfig
-from hooks.semantic_discovery import pre_discovery_hook
-from infrastructure.db_init import init_database
-from infrastructure.mlx_integration import MLXModelManager, EmbeddingManager
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+from smartcp.infrastructure.bifrost import BifrostClient
 
 # Configure logging
 logging.basicConfig(
@@ -23,31 +21,52 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Bifrost client (initialized on startup)
+bifrost_client: Optional[BifrostClient] = None
+
+
+# ============================================================================
+# Lifespan Events
+# ============================================================================
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan context manager."""
+    global bifrost_client
+    logger.info("Starting SmartCP MCP Frontend")
+    try:
+        # Initialize Bifrost client
+        bifrost_client = BifrostClient()
+        await bifrost_client.connect()
+        logger.info("Connected to Bifrost backend")
+    except Exception as e:
+        logger.error(f"Startup failed: {e}")
+        raise
+
+    yield
+
+    logger.info("Shutting down SmartCP")
+    try:
+        if bifrost_client:
+            await bifrost_client.disconnect()
+            logger.info("Disconnected from Bifrost backend")
+    except Exception as e:
+        logger.error(f"Shutdown error: {e}")
+
+
 # Initialize FastAPI app
 app = FastAPI(
-    title="Semantic Tool Router",
-    description="Intelligent tool routing with auto-discovery",
-    version="1.0.0",
+    title="SmartCP - MCP Frontend",
+    description="MCP protocol frontend delegating to Bifrost backend",
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
-# Initialize components
-router = ArchRouter()
-registry = ToolRegistry(TOOL_REGISTRY)
-mlx_manager = MLXModelManager()
-embedding_manager = EmbeddingManager()
 
-# Database config (from environment)
-db_config = DatabaseConfig(
-    postgres_url="postgresql://mcp_user:mcp_password@localhost/mcp_db",
-    memgraph_url="bolt://localhost:7687",
-    qdrant_url="http://localhost:6333",
-    valkey_url="redis://localhost:6379",
-)
-db_service = DatabaseService(db_config)
-search_service = SearchService(db_service)
-
-
+# ============================================================================
 # Request/Response models
+# ============================================================================
 class RoutingRequest(BaseModel):
     """Routing request"""
     action: str
@@ -70,49 +89,20 @@ class HealthResponse(BaseModel):
     databases: dict
 
 
-# Lifecycle events
-@app.on_event("startup")
-async def startup():
-    """Initialize on startup"""
-    logger.info("Starting Semantic Tool Router")
-    try:
-        # Connect to databases
-        await db_service.connect()
-        logger.info("Database connections established")
-
-        # Initialize database schema
-        if await init_database(db_service):
-            logger.info("Database schema initialized")
-
-        # Load MLX model
-        mlx_manager.load()
-        logger.info("MLX model loaded")
-
-    except Exception as e:
-        logger.error(f"Startup failed: {e}")
-        raise
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup on shutdown"""
-    logger.info("Shutting down Semantic Tool Router")
-    try:
-        await db_service.disconnect()
-        logger.info("Database connections closed")
-    except Exception as e:
-        logger.error(f"Shutdown failed: {e}")
-
-
+# ============================================================================
 # API Endpoints
+# ============================================================================
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
+    global bifrost_client
     try:
-        db_health = await db_service.health_check()
+        # Check Bifrost connection
+        bifrost_status = "connected" if bifrost_client and bifrost_client.is_connected else "disconnected"
+
         return HealthResponse(
-            status="healthy",
-            databases=db_health,
+            status="healthy" if bifrost_status == "connected" else "degraded",
+            databases={"bifrost": bifrost_status}
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -122,68 +112,97 @@ async def health_check():
 @app.post("/route", response_model=RoutingResponse)
 async def route_query(request: RoutingRequest):
     """
-    Route a query to appropriate tools.
-    
+    Route a query to appropriate tools via Bifrost.
+
     Args:
         request: Routing request with action and prompt
-    
+
     Returns:
         RoutingResponse with selected route and tools
     """
+    global bifrost_client
+
+    if not bifrost_client:
+        raise HTTPException(status_code=503, detail="Bifrost client not initialized")
+
     try:
-        # Execute pre-discovery hook
-        discovery_result = await pre_discovery_hook(
-            action=request.action,
+        # Delegate routing to Bifrost
+        decision = await bifrost_client.route_request(
             prompt=request.prompt,
-            router=router,
-            registry=registry,
-            context=request.context,
+            context=request.context or {}
         )
-        
+
         return RoutingResponse(
-            route=discovery_result.route,
-            tools=discovery_result.tools,
-            cli_command=discovery_result.cli_command,
-            hooks=discovery_result.hooks,
-            confidence=discovery_result.confidence,
+            route=decision.selected_tool,
+            tools=[decision.selected_tool],
+            cli_command=f"execute {decision.selected_tool}",
+            hooks=[],
+            confidence=decision.confidence
         )
-        
+
     except Exception as e:
         logger.error(f"Routing failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/routes")
-async def list_routes():
-    """List all available routes"""
-    return {
-        "routes": registry.list_routes(),
-        "count": len(registry.list_routes()),
-    }
-
-
 @app.get("/tools")
 async def list_tools():
-    """List all available tools"""
-    return {
-        "tools": registry.list_all_tools(),
-        "count": len(registry.list_all_tools()),
-    }
+    """List all available tools from Bifrost"""
+    global bifrost_client
+
+    if not bifrost_client:
+        raise HTTPException(status_code=503, detail="Bifrost client not initialized")
+
+    try:
+        tools = await bifrost_client.query_tools()
+        return {
+            "tools": [
+                {
+                    "name": t.name,
+                    "description": t.description,
+                    "category": t.category,
+                    "tags": t.tags
+                }
+                for t in tools
+            ],
+            "count": len(tools),
+        }
+    except Exception as e:
+        logger.error(f"Failed to list tools: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/route/{route_name}")
-async def get_route(route_name: str):
-    """Get details for a specific route"""
-    route = registry.get_route(route_name)
-    if not route:
-        raise HTTPException(status_code=404, detail=f"Route not found: {route_name}")
-    return route
+@app.get("/tools/{tool_name}")
+async def get_tool(tool_name: str):
+    """Get details for a specific tool"""
+    global bifrost_client
+
+    if not bifrost_client:
+        raise HTTPException(status_code=503, detail="Bifrost client not initialized")
+
+    try:
+        tool = await bifrost_client.query_tool(tool_name)
+        if not tool:
+            raise HTTPException(status_code=404, detail=f"Tool not found: {tool_name}")
+
+        return {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+            "category": tool.category,
+            "tags": tool.tags
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get tool: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/search/semantic")
 async def semantic_search(query: str, limit: int = 10):
     """
-    Semantic search using pgvector.
+    Semantic search via Bifrost.
 
     Args:
         query: Search query
@@ -192,85 +211,33 @@ async def semantic_search(query: str, limit: int = 10):
     Returns:
         List of search results
     """
-    try:
-        # Generate embedding
-        embedding = embedding_manager.generate_embedding(query)
+    global bifrost_client
 
-        # Search
-        results = await search_service.semantic_search(embedding, limit=limit)
+    if not bifrost_client:
+        raise HTTPException(status_code=503, detail="Bifrost client not initialized")
+
+    try:
+        results = await bifrost_client.semantic_search(
+            query=query,
+            limit=limit
+        )
 
         return {
             "query": query,
-            "results": results,
+            "results": [
+                {
+                    "id": r.id,
+                    "content": r.content,
+                    "metadata": r.metadata,
+                    "score": r.score
+                }
+                for r in results
+            ],
             "count": len(results),
         }
     except Exception as e:
         logger.error(f"Semantic search failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/search/fulltext")
-async def full_text_search(query: str, limit: int = 10):
-    """
-    Full-text search using PostgreSQL FTS.
-
-    Args:
-        query: Search query
-        limit: Number of results
-
-    Returns:
-        List of search results
-    """
-    try:
-        results = await search_service.full_text_search(query, limit=limit)
-
-        return {
-            "query": query,
-            "results": results,
-            "count": len(results),
-        }
-    except Exception as e:
-        logger.error(f"Full-text search failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/search/hybrid")
-async def hybrid_search(query: str, limit: int = 10):
-    """
-    Hybrid search combining FTS and semantic search.
-
-    Args:
-        query: Search query
-        limit: Number of results
-
-    Returns:
-        List of hybrid search results
-    """
-    try:
-        # Generate embedding
-        embedding = embedding_manager.generate_embedding(query)
-
-        # Hybrid search
-        results = await search_service.hybrid_search(
-            query_text=query,
-            query_embedding=embedding,
-            limit=limit,
-        )
-
-        return {
-            "query": query,
-            "results": results,
-            "count": len(results),
-        }
-    except Exception as e:
-        logger.error(f"Hybrid search failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/model/stats")
-async def model_stats():
-    """Get MLX model statistics"""
-    return mlx_manager.get_stats()
 
 
 if __name__ == "__main__":
