@@ -6,7 +6,7 @@ Tests the middleware layer that processes requests and adds inference results.
 
 import pytest
 
-from mcp_inference_bridge import create_inference_middleware
+from mcp.inference import create_inference_middleware
 
 
 class TestInferenceMiddleware:
