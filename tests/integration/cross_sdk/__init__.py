@@ -1,1 +1,0 @@
-"""Cross SDK integration tests."""

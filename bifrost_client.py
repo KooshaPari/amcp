@@ -2,46 +2,50 @@
 
 Used to delegate execution, state, and memory operations to Bifrost.
 Defaults target the local Bifrost backend (8080) when running via docker-compose.
-
-Configuration is now centralized in config.bifrost module.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 import httpx
 
-from config.bifrost import BifrostAuth, BifrostEndpoints, BifrostTimeouts
-
 logger = logging.getLogger(__name__)
+
+# Default configuration values
+DEFAULT_BIFROST_URL = "http://localhost:8080/graphql"
+DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
 @dataclass
 class BifrostClientConfig:
     """Configuration for the Bifrost client."""
 
-    url: str = BifrostEndpoints.GRAPHQL_LOCAL
-    api_key: Optional[str] = None
-    timeout_seconds: float = BifrostTimeouts.DEFAULT_REQUEST
+    url: str = field(default_factory=lambda: os.environ.get("BIFROST_URL", DEFAULT_BIFROST_URL))
+    api_key: Optional[str] = field(default_factory=lambda: os.environ.get("BIFROST_API_KEY"))
+    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
 
 
 class BifrostClient:
     """Tiny GraphQL client with query/mutate helpers."""
 
     def __init__(self, config: Optional[BifrostClientConfig] = None):
-        if config is None:
-            self.config = BifrostClientConfig(
-                url=BifrostEndpoints.get_graphql_endpoint(),
-                api_key=BifrostAuth.get_api_key(),
-                timeout_seconds=BifrostTimeouts.get_default(),
-            )
-        else:
-            self.config = config
+        self.config = config or BifrostClientConfig()
         self._client: Optional[httpx.AsyncClient] = None
+        self.is_connected = False
+
+    async def connect(self) -> None:
+        """Connect to Bifrost backend."""
+        await self._ensure_client()
+        self.is_connected = True
+
+    async def disconnect(self) -> None:
+        """Disconnect from Bifrost backend."""
+        await self.close()
+        self.is_connected = False
 
     async def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None:
@@ -77,7 +81,7 @@ class BifrostClient:
                 logger.error("Bifrost GraphQL error", extra={"errors": data.get("errors")})
                 raise RuntimeError(data["errors"])
             return data.get("data", {})
-        except Exception as exc:  # broad to ensure fallback can happen upstream
+        except Exception as exc:
             logger.error(
                 "Bifrost request failed",
                 extra={"error": str(exc), "url": self.config.url},
@@ -98,4 +102,3 @@ class BifrostClient:
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         await self.close()
-

@@ -28,6 +28,8 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "fastmcp>=2.13.0",
     "gql[aiohttp]>=3.0.0",
+    # Agent Runtime & Sandbox
+    "langchain-sandbox>=0.1.0",
     # Utilities & Tools
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.0",
@@ -58,7 +60,8 @@ dev = [
 
 [tool.setuptools]
 # Automatically discover packages
-packages = ["auth", "bifrost", "bifrost_extensions", "config", "infrastructure", "middleware", "models", "optimization", "services", "tools", "usage"]
+# Note: Only include packages that actually exist
+packages = ["auth", "config", "middleware", "models", "runtime", "tools"]
 
 [tool.ruff]
 line-length = 100

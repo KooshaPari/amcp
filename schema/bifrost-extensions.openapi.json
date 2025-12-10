@@ -1,0 +1,597 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bifrost Extensions API",
+    "description": "Smart LLM Gateway - Intelligent model routing, tool routing, classification, and cost optimization",
+    "version": "2.0.0",
+    "contact": {
+      "name": "SmartCP Team",
+      "url": "https://github.com/smartcp/bifrost-extensions"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development server"
+    },
+    {
+      "url": "https://api.bifrost.example.com",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/v1/route": {
+      "post": {
+        "summary": "Route request to optimal model",
+        "description": "Use intelligent model routing to select the best model based on strategy and constraints",
+        "operationId": "routeRequest",
+        "tags": [
+          "Routing"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful routing decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v1/route-tool": {
+      "post": {
+        "summary": "Route action to optimal tool",
+        "description": "Select the best tool for a given action from available tools",
+        "operationId": "routeTool",
+        "tags": [
+          "Routing"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolRoutingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tool routing decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolRoutingDecision"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/v1/classify": {
+      "post": {
+        "summary": "Classify prompt",
+        "description": "Classify a prompt into categories for routing optimization",
+        "operationId": "classifyPrompt",
+        "tags": [
+          "Classification"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassificationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Classification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassificationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Check if the API is running and healthy",
+        "operationId": "healthCheck",
+        "tags": [
+          "System"
+        ],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "healthy",
+                        "degraded"
+                      ]
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Message": {
+        "description": "Chat message.",
+        "properties": {
+          "role": {
+            "description": "Message role (user, assistant, system)",
+            "title": "Role",
+            "type": "string"
+          },
+          "content": {
+            "description": "Message content",
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "Message",
+        "type": "object"
+      },
+      "RoutingConstraints": {
+        "description": "Constraints for routing decisions.",
+        "properties": {
+          "max_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Maximum cost per request",
+            "title": "Max Cost Usd"
+          },
+          "max_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Maximum latency",
+            "title": "Max Latency Ms"
+          },
+          "required_capabilities": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Required model capabilities",
+            "title": "Required Capabilities"
+          }
+        },
+        "title": "RoutingConstraints",
+        "type": "object"
+      },
+      "RoutingStrategy": {
+        "description": "Model routing optimization strategies.",
+        "enum": [
+          "cost_optimized",
+          "performance_optimized",
+          "speed_optimized",
+          "balanced",
+          "pareto"
+        ],
+        "title": "RoutingStrategy",
+        "type": "string"
+      },
+      "RoutingRequest": {
+        "description": "Request for model routing.",
+        "properties": {
+          "messages": {
+            "description": "Conversation messages",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/RoutingStrategy",
+            "default": "balanced",
+            "description": "Routing strategy"
+          },
+          "constraints": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoutingConstraints"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Routing constraints"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Additional context",
+            "title": "Context"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "RoutingRequest",
+        "type": "object"
+      },
+      "ModelInfo": {
+        "description": "Selected model information.",
+        "properties": {
+          "model_id": {
+            "description": "Model identifier",
+            "title": "Model Id",
+            "type": "string"
+          },
+          "provider": {
+            "description": "Provider name",
+            "title": "Provider",
+            "type": "string"
+          },
+          "estimated_cost_usd": {
+            "description": "Estimated cost",
+            "title": "Estimated Cost Usd",
+            "type": "number"
+          },
+          "estimated_latency_ms": {
+            "description": "Estimated latency",
+            "title": "Estimated Latency Ms",
+            "type": "number"
+          }
+        },
+        "required": [
+          "model_id",
+          "provider",
+          "estimated_cost_usd",
+          "estimated_latency_ms"
+        ],
+        "title": "ModelInfo",
+        "type": "object"
+      },
+      "RoutingResponse": {
+        "description": "Response from model routing.",
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/ModelInfo",
+            "description": "Selected model"
+          },
+          "confidence": {
+            "description": "Routing confidence",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "reasoning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Routing reasoning",
+            "title": "Reasoning"
+          },
+          "alternatives": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ModelInfo"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Alternative models",
+            "title": "Alternatives"
+          }
+        },
+        "required": [
+          "model",
+          "confidence"
+        ],
+        "title": "RoutingResponse",
+        "type": "object"
+      },
+      "ToolRoutingRequest": {
+        "description": "Request for tool routing.",
+        "properties": {
+          "action": {
+            "description": "Action to perform",
+            "title": "Action",
+            "type": "string"
+          },
+          "available_tools": {
+            "description": "Available tool names",
+            "items": {
+              "type": "string"
+            },
+            "title": "Available Tools",
+            "type": "array"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Context information",
+            "title": "Context"
+          }
+        },
+        "required": [
+          "action",
+          "available_tools"
+        ],
+        "title": "ToolRoutingRequest",
+        "type": "object"
+      },
+      "ToolRoutingDecision": {
+        "description": "Decision from tool routing.",
+        "properties": {
+          "recommended_tool": {
+            "description": "Recommended tool name",
+            "title": "Recommended Tool",
+            "type": "string"
+          },
+          "confidence": {
+            "description": "Confidence score",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "reasoning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Decision reasoning",
+            "title": "Reasoning"
+          },
+          "alternatives": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Alternative tools",
+            "title": "Alternatives"
+          }
+        },
+        "required": [
+          "recommended_tool",
+          "confidence"
+        ],
+        "title": "ToolRoutingDecision",
+        "type": "object"
+      },
+      "ClassificationRequest": {
+        "description": "Request for prompt classification.",
+        "properties": {
+          "prompt": {
+            "description": "Prompt to classify",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Target categories (or auto-detect)",
+            "title": "Categories"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "ClassificationRequest",
+        "type": "object"
+      },
+      "ClassificationResult": {
+        "description": "Result from prompt classification.",
+        "properties": {
+          "category": {
+            "description": "Classified category",
+            "title": "Category",
+            "type": "string"
+          },
+          "confidence": {
+            "description": "Confidence score",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "subcategories": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Subcategories",
+            "title": "Subcategories"
+          },
+          "complexity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Complexity level (simple, moderate, complex)",
+            "title": "Complexity"
+          }
+        },
+        "required": [
+          "category",
+          "confidence"
+        ],
+        "title": "ClassificationResult",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for authentication"
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Routing",
+      "description": "Model and tool routing operations"
+    },
+    {
+      "name": "Classification",
+      "description": "Prompt classification operations"
+    },
+    {
+      "name": "System",
+      "description": "System health and status"
+    }
+  ]
+}

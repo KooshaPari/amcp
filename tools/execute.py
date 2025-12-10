@@ -1,245 +1,159 @@
-"""Execute Code MCP Tool for SmartCP.
+"""SmartCP Execute Tool.
 
-Provides the execute_code MCP tool that enables sandboxed
-Python code execution with user-scoped variable persistence.
+Single MCP tool that provides the complete agent runtime.
+This is the ONLY entry point for code execution.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
-from auth.context import get_request_context
-from services.executor import UserScopedExecutor
-from services.models import ExecuteCodeRequest, ExecuteCodeResponse, ExecutionLanguage, ExecutionStatus
+from smartcp.runtime import AgentRuntime, ExecutionResult, UserContext
 
 logger = logging.getLogger(__name__)
 
+# Global runtime instance (initialized by server)
+_runtime: AgentRuntime | None = None
 
-def register_execute_tool(mcp: Any, executor: UserScopedExecutor) -> None:
-    """Register the execute_code tool with the MCP server.
+
+def set_runtime(runtime: AgentRuntime) -> None:
+    """Set the global runtime instance.
+
+    Called by server during startup.
+    """
+    global _runtime
+    _runtime = runtime
+
+
+def get_runtime() -> AgentRuntime:
+    """Get the global runtime instance."""
+    if _runtime is None:
+        raise RuntimeError("Runtime not initialized. Call set_runtime() first.")
+    return _runtime
+
+
+def register_execute_tool(mcp: Any) -> None:
+    """Register the execute tool with FastMCP server.
 
     Args:
         mcp: FastMCP server instance
-        executor: UserScopedExecutor service
     """
+    from fastmcp import Context
 
     @mcp.tool()
-    async def execute_code(
+    async def execute(
         code: str,
-        language: str = "python",
         timeout: int = 30,
-        context: Optional[dict[str, Any]] = None,
+        context: Context | None = None,
     ) -> dict[str, Any]:
-        """Execute code in a sandboxed environment.
+        """Execute code in the agent runtime.
 
-        This tool executes Python code in a secure sandbox with:
-        - User-isolated variable namespace (variables persist across calls)
-        - Security checks to prevent dangerous operations
-        - Timeout enforcement
-        - Output capture
+        This is the single MCP tool for SmartCP. The agent's code has access to:
+
+        - All MCP tools as async callables: `await file_read(path)`
+        - Scope API: `await scope.session.set("key", value)`
+        - MCP management: `await mcp.search("database")`
+        - Skills: `await skills.load("my-skill")`
+        - Background tasks: `task = bg(expensive_op())`
+        - Tool definition: `@tool def my_tool(): ...`
 
         Args:
-            code: The code to execute
-            language: Programming language (currently only "python" supported)
-            timeout: Maximum execution time in seconds (1-300, default 30)
-            context: Optional context variables to inject
+            code: Python code to execute
+            timeout: Execution timeout in seconds (1-300)
+            context: MCP context with user information
 
         Returns:
-            Dictionary with execution results:
-            - execution_id: Unique identifier for this execution
-            - status: "completed", "failed", or "timeout"
-            - output: Standard output from the code
-            - error: Error message if execution failed
-            - result: Return value of the last expression
-            - variables: List of variables created/updated
+            Execution result with output, errors, and metadata
 
-        Examples:
-            # Simple calculation
-            execute_code(code="x = 2 + 2")
-            # Result: {"status": "completed", "variables": ["x"]}
+        Example:
+            >>> # Simple execution
+            >>> result = await execute("x = 1 + 1; print(x)")
+            >>> print(result["output"])  # "2\n"
 
-            # Access previous variable
-            execute_code(code="print(x * 10)")
-            # Result: {"status": "completed", "output": "40\\n"}
+            >>> # Using scope API
+            >>> await execute("await scope.session.set('count', 0)")
+            >>> await execute("count = await scope.session.get('count'); print(count)")
 
-            # Define a function
-            execute_code(code=\"\"\"
-            def greet(name):
-                return f"Hello, {name}!"
-            result = greet("World")
-            \"\"\")
-            # Result: {"status": "completed", "result": "Hello, World!"}
+            >>> # Using tools
+            >>> await execute("files = await file_list('.'); print(files)")
         """
-        # Get user context from request
-        user_ctx = get_request_context()
-        if user_ctx is None:
-            logger.error("No user context available for execute_code")
-            return {
-                "execution_id": "",
-                "status": "failed",
-                "error": "Authentication required",
-                "output": None,
-                "result": None,
-                "variables": [],
-            }
+        runtime = get_runtime()
 
-        logger.info(
-            "execute_code tool called",
-            extra={
-                "user_id": user_ctx.user_id,
-                "language": language,
-                "code_length": len(code),
-                "request_id": user_ctx.request_id,
-            },
-        )
+        # Extract user context from MCP context
+        user_ctx = _extract_user_context(context)
 
-        # Validate language
-        try:
-            exec_language = ExecutionLanguage(language.lower())
-        except ValueError:
-            return {
-                "execution_id": "",
-                "status": "failed",
-                "error": f"Unsupported language: {language}. Only 'python' is supported.",
-                "output": None,
-                "result": None,
-                "variables": [],
-            }
-
-        # Build request
-        request = ExecuteCodeRequest(
+        # Execute code
+        result = await runtime.execute(
             code=code,
-            language=exec_language,
-            timeout=min(max(timeout, 1), 300),  # Clamp to 1-300
-            context=context or {},
+            user_ctx=user_ctx,
+            timeout=timeout,
         )
 
-        # Execute
-        response = await executor.execute(user_ctx, request)
-
+        # Convert ExecutionResult to dict
         return {
-            "execution_id": response.execution_id,
-            "status": response.status.value,
-            "output": response.output,
-            "error": response.error,
-            "result": response.result,
-            "variables": response.variables or [],
-            "execution_time_ms": response.execution_time_ms,
+            "output": result.output,
+            "error": result.error,
+            "result": result.result,
+            "execution_time_ms": result.execution_time_ms,
+            "variables": result.variables,
+            "status": result.status.value,
         }
 
     @mcp.tool()
-    async def get_variables() -> dict[str, Any]:
-        """Get all variables in the current execution namespace.
+    async def clear_session(context: Context | None = None) -> dict[str, Any]:
+        """Clear the current execution session.
 
-        Returns a dictionary of all user-defined variables that have been
-        created through previous execute_code calls.
-
-        Returns:
-            Dictionary with:
-            - variables: Dictionary of variable name -> value
-            - count: Number of variables
-
-        Example:
-            # After running execute_code(code="x = 1; y = 2")
-            get_variables()
-            # Result: {"variables": {"x": 1, "y": 2}, "count": 2}
+        Removes all defined variables and resets state.
         """
-        user_ctx = get_request_context()
-        if user_ctx is None:
-            return {"variables": {}, "count": 0, "error": "Authentication required"}
+        runtime = get_runtime()
+        user_ctx = _extract_user_context(context)
 
-        variables = await executor.get_variables(user_ctx)
+        runtime.clear_session(user_ctx.user_id)
+
         return {
-            "variables": variables,
-            "count": len(variables),
+            "success": True,
+            "message": "Session cleared",
         }
 
     @mcp.tool()
-    async def set_variable(
-        name: str,
-        value: Any,
-    ) -> dict[str, Any]:
-        """Set a variable in the execution namespace.
-
-        Directly sets a variable without executing code. The variable
-        will be available in subsequent execute_code calls.
-
-        Args:
-            name: Variable name (must be a valid Python identifier)
-            value: Variable value (must be JSON-serializable)
+    async def runtime_status(context: Context | None = None) -> dict[str, Any]:
+        """Get runtime status and diagnostics.
 
         Returns:
-            Dictionary with:
-            - success: Whether the operation succeeded
-            - name: The variable name
-            - error: Error message if failed
-
-        Example:
-            set_variable(name="config", value={"debug": True})
-            execute_code(code="print(config)")
-            # Output: {"debug": True}
+            Runtime status including active sessions and configuration
         """
-        user_ctx = get_request_context()
-        if user_ctx is None:
-            return {"success": False, "error": "Authentication required"}
+        runtime = get_runtime()
 
-        try:
-            await executor.set_variable(user_ctx, name, value)
-            return {"success": True, "name": name}
-        except ValueError as e:
-            return {"success": False, "error": str(e)}
-        except Exception as e:
-            logger.error(
-                "Failed to set variable",
-                extra={
-                    "user_id": user_ctx.user_id,
-                    "variable": name,
-                    "error": str(e),
-                },
-            )
-            return {"success": False, "error": f"Failed to set variable: {e}"}
+        return {
+            "initialized": runtime.sandbox._initialized,
+            "active_sessions": len(runtime._session_cache),
+        }
 
-    @mcp.tool()
-    async def delete_variable(name: str) -> dict[str, Any]:
-        """Delete a variable from the execution namespace.
+    logger.info("Registered execute tool with FastMCP")
 
-        Args:
-            name: Variable name to delete
 
-        Returns:
-            Dictionary with:
-            - success: Whether the variable was deleted
-            - name: The variable name
+def _extract_user_context(context: Any) -> UserContext:
+    """Extract UserContext from MCP Context.
 
-        Example:
-            delete_variable(name="temp_data")
-        """
-        user_ctx = get_request_context()
-        if user_ctx is None:
-            return {"success": False, "error": "Authentication required"}
+    The context contains user information from the auth middleware.
+    """
+    if context is None:
+        # Anonymous user
+        return UserContext(user_id="anonymous")
 
-        deleted = await executor.delete_variable(user_ctx, name)
-        return {"success": deleted, "name": name}
+    # Try to get user info from context
+    # The exact structure depends on how auth middleware stores it
+    user_id = "anonymous"
+    workspace_id = None
 
-    @mcp.tool()
-    async def clear_variables() -> dict[str, Any]:
-        """Clear all variables from the execution namespace.
+    # FastMCP context may have request state
+    if hasattr(context, "request_context"):
+        req_ctx = context.request_context
+        if hasattr(req_ctx, "state"):
+            state = req_ctx.state
+            user_id = getattr(state, "user_id", None) or "anonymous"
+            workspace_id = getattr(state, "workspace_id", None)
 
-        Removes all user-defined variables. Use with caution.
-
-        Returns:
-            Dictionary with:
-            - success: Whether the operation succeeded
-            - count: Number of variables cleared
-
-        Example:
-            clear_variables()
-            # Result: {"success": True, "count": 5}
-        """
-        user_ctx = get_request_context()
-        if user_ctx is None:
-            return {"success": False, "count": 0, "error": "Authentication required"}
-
-        count = await executor.clear_variables(user_ctx)
-        return {"success": True, "count": count}
-
-    logger.info("Registered execute_code tools with MCP server")
+    return UserContext(
+        user_id=user_id,
+        workspace_id=workspace_id,
+    )

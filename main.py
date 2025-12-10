@@ -12,7 +12,7 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from smartcp.infrastructure.bifrost import BifrostClient
+from bifrost_client import BifrostClient
 
 # Configure logging
 logging.basicConfig(

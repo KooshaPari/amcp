@@ -1,1 +1,0 @@
-"""FastMCP authentication enhancement tests."""

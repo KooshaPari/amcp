@@ -1,49 +1,34 @@
 """SmartCP MCP Server.
 
-Main server module that wires together all components for the
-HTTP stateless MCP server with bearer token authentication.
+Thin delegation server that exposes Bifrost via MCP protocol.
 """
 
 import logging
 import os
 from typing import Any, Optional
 
-from auth.context import UserContextProvider
-from auth.middleware import AuthMiddleware, create_auth_middleware
-from auth.token import JWTConfig, TokenValidator, create_token_validator
+from auth.middleware import create_auth_middleware
+from auth.token import TokenValidator, create_token_validator
+from bifrost_client import BifrostClient, BifrostClientConfig
 from config.settings import SmartCPSettings, get_settings
-from smartcp.infrastructure.state import StateAdapter, create_state_adapter
-from smartcp.bifrost_client import BifrostClient, BifrostClientConfig
 from middleware.resource_access_enforcement import (
     ResourceAccessEnforcementMiddleware,
 )
-from services.executor import UserScopedExecutor, create_executor_service
-from services.memory import UserScopedMemory, create_memory_service
-from tools import register_execute_tool, register_memory_tool, register_state_tools
+from smartcp.runtime import AgentRuntime
+from tools.execute import register_execute_tool, set_runtime
 
 logger = logging.getLogger(__name__)
 
 
 class SmartCPServer:
-    """SmartCP MCP Server.
+    """SmartCP MCP Server - thin delegation to Bifrost.
 
-    Provides an HTTP stateless MCP server with:
-    - Bearer token authentication
-    - User-scoped state management
-    - Sandboxed code execution
-    - Persistent memory across requests
+    Provides HTTP stateless MCP server with bearer token authentication
+    and delegation to Bifrost backend.
 
     Usage:
-        # Create server
         server = SmartCPServer.create()
-
-        # Get FastMCP instance for tool registration
-        mcp = server.mcp
-
-        # Get FastAPI app for HTTP serving
         app = server.create_fastapi_app()
-
-        # Or run directly
         server.run()
     """
 
@@ -51,40 +36,29 @@ class SmartCPServer:
         self,
         settings: SmartCPSettings,
         mcp: Any,
+        runtime: AgentRuntime,
         bifrost_client: Optional[BifrostClient],
-        state: StateAdapter,
-        memory: UserScopedMemory,
-        executor: UserScopedExecutor,
         token_validator: TokenValidator,
     ):
-        """Initialize server with all dependencies.
+        """Initialize server with dependencies.
 
         Args:
             settings: Application settings
             mcp: FastMCP server instance
-            state: State adapter (delegates to Bifrost)
-            memory: Memory service
-            executor: Executor service
+            runtime: AgentRuntime for code execution
+            bifrost_client: Client for Bifrost backend delegation
             token_validator: JWT token validator
         """
         self.settings = settings
         self.mcp = mcp
+        self.runtime = runtime
         self.bifrost_client = bifrost_client
-        self.state = state
-        self.memory = memory
-        self.executor = executor
         self.token_validator = token_validator
 
-        # Register tools
-        self._register_tools()
+        # Wire runtime to tools module
+        set_runtime(runtime)
 
-    def _register_tools(self) -> None:
-        """Register all MCP tools."""
-        register_execute_tool(self.mcp, self.executor)
-        register_memory_tools(self.mcp, self.memory)
-        register_state_tools(self.mcp, self.state)
-
-        logger.info("All MCP tools registered")
+        logger.info("SmartCP MCP Server initialized with AgentRuntime")
 
     def create_fastapi_app(self) -> Any:
         """Create FastAPI application with authentication.
@@ -100,7 +74,7 @@ class SmartCPServer:
         # Wrap in FastAPI for additional features
         fastapi_app = FastAPI(
             title="SmartCP MCP Server",
-            description="MCP server with user-scoped state management",
+            description="MCP server with agent runtime and user-scoped state management",
             version=self.settings.version,
         )
 
@@ -139,7 +113,7 @@ class SmartCPServer:
                 backend_status = "not_configured"
 
             return {
-                "status": "ready" if backend_status == "connected" else "degraded",
+                "status": "ready" if backend_status != "disconnected" else "degraded",
                 "backend": backend_status,
                 "version": self.settings.version,
             }
@@ -193,7 +167,6 @@ class SmartCPServer:
             "Creating SmartCP server",
             extra={
                 "environment": settings.environment,
-                "log_level": settings.server.log_level,
             },
         )
 
@@ -210,7 +183,19 @@ class SmartCPServer:
             stateless=True,  # HTTP stateless mode
         )
 
-        # Create infrastructure
+        # Create AgentRuntime
+        runtime = AgentRuntime()
+
+        # Register MCP tools (this will call set_runtime internally)
+        try:
+            register_execute_tool(mcp)
+        except ImportError as e:
+            logger.warning(
+                "Failed to register execute tool",
+                extra={"error": str(e)},
+            )
+
+        # Create Bifrost client for backend delegation
         bifrost_client = None
         if settings.bifrost.url:
             bifrost_config = BifrostClientConfig(
@@ -219,18 +204,6 @@ class SmartCPServer:
                 timeout_seconds=settings.bifrost.timeout_seconds,
             )
             bifrost_client = BifrostClient(bifrost_config)
-
-        # StateAdapter delegates to Bifrost for all storage operations
-        state = create_state_adapter(
-            bifrost_client=bifrost_client, use_memory=bifrost_client is None
-        )
-
-        # Create services
-        memory = create_memory_service(state_adapter=state)
-        executor = create_executor_service(
-            memory=memory,
-            bifrost_client=bifrost_client,
-        )
 
         # Create auth - use defaults if not configured
         token_validator = create_token_validator(
@@ -243,10 +216,8 @@ class SmartCPServer:
         return cls(
             settings=settings,
             mcp=mcp,
+            runtime=runtime,
             bifrost_client=bifrost_client,
-            state=state,
-            memory=memory,
-            executor=executor,
             token_validator=token_validator,
         )
 

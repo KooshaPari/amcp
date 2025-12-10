@@ -1,1 +1,0 @@
-"""SmartCP integration tests."""

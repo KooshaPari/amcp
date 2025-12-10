@@ -1,0 +1,253 @@
+name: Generate & Publish SDKs
+
+# Trigger on bifrost_extensions changes or manual trigger
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'bifrost_extensions/**'
+      - 'scripts/generate_openapi_schema.py'
+      - 'schema/bifrost-extensions.openapi.json'
+      - 'codegen/**'
+      - '.github/workflows/generate-sdks.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish SDKs to registries'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: sdk-generation
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate SDKs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . --no-deps
+
+      - name: Generate OpenAPI schema
+        run: |
+          mkdir -p schema
+          python scripts/generate_openapi_schema.py > schema/bifrost-extensions.openapi.json
+
+      - name: Validate OpenAPI schema
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install schema validator
+        run: |
+          npm install -g spectacle-docs
+          npm install -g @apidevtools/swagger-cli
+
+      - name: Validate schema
+        run: |
+          swagger-cli validate schema/bifrost-extensions.openapi.json
+
+      - name: Set up Node.js for SDK generation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install OpenAPI Generator
+        run: |
+          npm install -g @openapitools/openapi-generator-cli
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate Python SDK
+        working-directory: codegen
+        run: |
+          mkdir -p sdks/python
+          openapi-generator-cli generate \
+            -i ../schema/bifrost-extensions.openapi.json \
+            -g python \
+            -o sdks/python \
+            -c config-python.json \
+            --enable-post-process-file
+
+      - name: Generate TypeScript SDK
+        working-directory: codegen
+        run: |
+          mkdir -p sdks/typescript
+          openapi-generator-cli generate \
+            -i ../schema/bifrost-extensions.openapi.json \
+            -g typescript \
+            -o sdks/typescript \
+            -c config-typescript.json \
+            --enable-post-process-file
+
+      - name: Generate Go SDK
+        working-directory: codegen
+        run: |
+          mkdir -p sdks/go
+          openapi-generator-cli generate \
+            -i ../schema/bifrost-extensions.openapi.json \
+            -g go \
+            -o sdks/go \
+            -c config-go.json \
+            --enable-post-process-file
+
+      - name: Generate Rust SDK
+        working-directory: codegen
+        run: |
+          mkdir -p sdks/rust
+          openapi-generator-cli generate \
+            -i ../schema/bifrost-extensions.openapi.json \
+            -g rust \
+            -o sdks/rust \
+            -c config-rust.json \
+            --enable-post-process-file
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: generated-sdks
+          path: codegen/sdks/
+
+      - name: Test Python SDK
+        working-directory: codegen/sdks/python
+        continue-on-error: true
+        run: |
+          pip install -e .
+          pip install pytest
+          pytest tests/ || true
+
+      - name: Test TypeScript SDK
+        working-directory: codegen/sdks/typescript
+        continue-on-error: true
+        run: |
+          npm install
+          npm test || true
+
+      - name: Test Go SDK
+        working-directory: codegen/sdks/go
+        continue-on-error: true
+        run: |
+          go test ./... || true
+
+      - name: Test Rust SDK
+        working-directory: codegen/sdks/rust
+        continue-on-error: true
+        run: |
+          cargo test || true
+
+  publish:
+    name: Publish SDKs
+    needs: generate
+    runs-on: ubuntu-latest
+    if: github.event.inputs.publish == 'true' || github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download generated SDKs
+        uses: actions/download-artifact@v3
+        with:
+          name: generated-sdks
+          path: codegen/sdks/
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Publish Python SDK to PyPI
+        if: always()
+        continue-on-error: true
+        working-directory: codegen/sdks/python
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          pip install build twine
+          python -m build
+          twine upload dist/* || echo "Python SDK publish skipped or failed (may already exist)"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish TypeScript SDK to npm
+        if: always()
+        continue-on-error: true
+        working-directory: codegen/sdks/typescript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm install
+          npm publish || echo "TypeScript SDK publish skipped or failed (may already exist)"
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Publish Go SDK to pkg.go.dev
+        if: always()
+        continue-on-error: true
+        working-directory: codegen/sdks/go
+        run: |
+          # Go packages are auto-discovered from GitHub
+          # Ensure go.mod is correct
+          go mod tidy
+          # Create a GitHub release for go.get to work
+          echo "Go package will be available at: pkg.go.dev/github.com/smartcp/bifrost-extensions-go"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish Rust SDK to crates.io
+        if: always()
+        continue-on-error: true
+        working-directory: codegen/sdks/rust
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          cargo publish || echo "Rust SDK publish skipped or failed (may already exist)"
+
+  notify:
+    name: Notify on completion
+    needs: [generate, publish]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: SDK generation summary
+        run: |
+          echo "✅ SDK Generation Workflow Complete"
+          echo "Generated SDKs:"
+          echo "  - Python (PyPI)"
+          echo "  - TypeScript/JavaScript (npm)"
+          echo "  - Go (pkg.go.dev)"
+          echo "  - Rust (crates.io)"

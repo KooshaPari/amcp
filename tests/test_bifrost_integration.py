@@ -8,9 +8,37 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
 
+from dataclasses import dataclass
+from typing import List, Optional, Any
+
 from main import app
-from infrastructure.bifrost.client import BifrostClient
-from infrastructure.bifrost.queries import RoutingDecision, ToolMetadata, SearchResult
+from bifrost_client import BifrostClient
+
+
+# Mock response models for testing
+@dataclass
+class RoutingDecision:
+    selected_tool: str
+    confidence: float
+    reasoning: str
+    alternatives: List[str]
+
+
+@dataclass
+class ToolMetadata:
+    name: str
+    description: str
+    category: str
+    tags: List[str]
+    parameters: Optional[dict] = None
+
+
+@dataclass
+class SearchResult:
+    id: str
+    content: str
+    metadata: dict
+    score: float
 
 
 @pytest.fixture
