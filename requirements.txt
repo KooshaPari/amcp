@@ -439,7 +439,7 @@ websockets==15.0.1
     # via
     #   fastmcp
     #   realtime
-yarl==1.22.0
+yarl==1.23.0
     # via
     #   aiohttp
     #   gql
