@@ -246,7 +246,7 @@ protobuf==7.34.0rc1
     #   qdrant-client
 psycopg==3.3.2
     # via smartcp
-psycopg-binary==3.3.2 ; implementation_name != 'pypy'
+psycopg-binary==3.3.3 ; implementation_name != 'pypy'
     # via psycopg
 py-key-value-aio==0.3.0
     # via fastmcp
