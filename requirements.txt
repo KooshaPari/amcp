@@ -435,7 +435,7 @@ uvicorn==0.38.0
     #   smartcp
 voyageai==0.3.6
     # via smartcp
-websockets==15.0.1
+websockets==16.0
     # via
     #   fastmcp
     #   realtime
