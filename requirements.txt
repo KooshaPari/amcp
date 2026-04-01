@@ -248,7 +248,7 @@ psycopg==3.3.2
     # via smartcp
 psycopg-binary==3.3.2 ; implementation_name != 'pypy'
     # via psycopg
-py-key-value-aio==0.3.0
+py-key-value-aio==0.4.4
     # via fastmcp
 py-key-value-shared==0.3.0
     # via py-key-value-aio
