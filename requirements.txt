@@ -5,7 +5,7 @@
 # Direct dependencies are defined in pyproject.toml under [project.dependencies]
 
 -e .
-aiohttp==3.13.2
+aiohttp==3.13.3
     # via
     #   gql
     #   voyageai
@@ -38,7 +38,7 @@ attrs==25.4.0
     #   cyclopts
     #   jsonschema
     #   referencing
-authlib==1.6.5
+authlib==1.6.6
     # via fastmcp
 backoff==2.2.1
     # via gql
@@ -95,7 +95,7 @@ fastmcp==2.13.3
     # via smartcp
 ffmpeg-python==0.2.0
     # via voyageai
-filelock==3.20.0
+filelock==3.20.3
     # via
     #   huggingface-hub
     #   transformers
@@ -169,7 +169,7 @@ jsonschema-path==0.3.4
     # via fastmcp
 jsonschema-specifications==2025.9.1
     # via jsonschema
-langchain-core==1.1.2
+langchain-core==1.2.5
     # via langchain-text-splitters
 langchain-text-splitters==1.0.0
     # via voyageai
@@ -179,7 +179,7 @@ markdown-it-py==4.0.0
     # via rich
 markupsafe==3.0.3
     # via jinja2
-mcp==1.22.0
+mcp==1.23.0
     # via fastmcp
 mdurl==0.1.2
     # via markdown-it-py
@@ -240,7 +240,7 @@ propcache==0.4.1
     # via
     #   aiohttp
     #   yarl
-protobuf==6.33.2
+protobuf==7.34.0rc1
     # via
     #   mlx-lm
     #   qdrant-client
@@ -292,7 +292,7 @@ python-dotenv==1.2.1
     #   smartcp
 python-json-logger==4.0.0
     # via smartcp
-python-multipart==0.0.20
+python-multipart==0.0.22
     # via mcp
 pytz==2025.2
     # via neo4j
@@ -420,7 +420,7 @@ typing-inspection==0.4.2
     #   pydantic-settings
 tzdata==2025.2 ; sys_platform == 'win32'
     # via psycopg
-urllib3==2.6.1
+urllib3==2.6.3
     # via
     #   qdrant-client
     #   requests
