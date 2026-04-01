@@ -209,7 +209,7 @@ numpy==2.3.5 ; python_full_version >= '3.11'
     #   qdrant-client
     #   transformers
     #   voyageai
-openai==2.9.0
+openai==2.30.0
     # via smartcp
 openapi-pydantic==0.5.1
     # via fastmcp
