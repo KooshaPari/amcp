@@ -332,7 +332,7 @@ requests==2.32.5
     #   voyageai
 requests-toolbelt==1.0.0
     # via langsmith
-rich==14.2.0
+rich==14.3.3
     # via
     #   cyclopts
     #   fastmcp
