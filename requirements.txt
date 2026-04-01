@@ -195,7 +195,7 @@ multidict==6.7.0
     # via
     #   aiohttp
     #   yarl
-neo4j==6.0.3
+neo4j==6.1.0
     # via smartcp
 numpy==2.2.6 ; python_full_version < '3.11'
     # via
