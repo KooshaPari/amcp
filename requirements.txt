@@ -385,7 +385,7 @@ tqdm==4.67.1
     #   huggingface-hub
     #   openai
     #   transformers
-transformers==4.57.3
+transformers==5.4.0
     # via
     #   mlx-lm
     #   smartcp
