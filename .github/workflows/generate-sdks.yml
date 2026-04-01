@@ -74,7 +74,7 @@ jobs:
           npm install -g @openapitools/openapi-generator-cli
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
           go-version: '1.21'
 
@@ -210,7 +210,7 @@ jobs:
           npm publish || echo "TypeScript SDK publish skipped or failed (may already exist)"
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
           go-version: '1.21'
 
