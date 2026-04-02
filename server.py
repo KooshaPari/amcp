@@ -7,6 +7,8 @@ import logging
 import os
 from typing import Any, Optional
 
+from smartcp.runtime import AgentRuntime
+
 from auth.middleware import create_auth_middleware
 from auth.token import TokenValidator, create_token_validator
 from bifrost_client import BifrostClient, BifrostClientConfig
@@ -14,7 +16,6 @@ from config.settings import SmartCPSettings, get_settings
 from middleware.resource_access_enforcement import (
     ResourceAccessEnforcementMiddleware,
 )
-from smartcp.runtime import AgentRuntime
 from tools.execute import register_execute_tool, set_runtime
 
 logger = logging.getLogger(__name__)

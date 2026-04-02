@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "smartcp"
 version = "1.0.0"
 description = "SmartCP MCP Server with resource access enforcement"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     # Database & Storage
     "asyncpg==0.30.0",
@@ -29,7 +29,7 @@ dependencies = [
     "fastmcp>=2.13.0",
     "gql[aiohttp]>=3.0.0",
     # Agent Runtime & Sandbox
-    "langchain-sandbox>=0.1.0",
+    "langchain-sandbox>=0.0.6",
     # Utilities & Tools
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.0",
@@ -61,7 +61,7 @@ dev = [
 [tool.setuptools]
 # Automatically discover packages
 # Note: Only include packages that actually exist
-packages = ["auth", "config", "middleware", "models", "runtime", "tools"]
+packages = ["auth", "config", "middleware", "runtime", "tools"]
 
 [tool.ruff]
 line-length = 100
@@ -69,16 +69,6 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
-
-# Resource access enforcement rules (Phase 5.1)
-# Ban direct database imports in smartcp/ (only allowed in bifrost-extensions)
-flake8-allowed-directives = [
-    # Ban these imports from smartcp/ (use bifrost_client instead)
-    "from supabase",
-    "from neo4j",
-    "import redis",
-    "import qdrant_client",
-]
 
 [tool.ruff.lint.per-file-ignores]
 # Test files can be more lenient
