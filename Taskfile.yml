@@ -1,0 +1,55 @@
+version: '3'
+
+tasks:
+  lint:
+    desc: "Run linter"
+    cmds:
+      - ruff check .
+
+  format:
+    desc: "Format code"
+    cmds:
+      - ruff format .
+
+  test:
+    desc: "Run tests"
+    cmds:
+      - pytest
+
+  typecheck:
+    desc: "Run type checking"
+    cmds:
+      - pyright
+
+  security:
+    desc: "Run security audit"
+    cmds:
+      - pip-audit
+
+  quality:
+    desc: "Run quality checks"
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: test
+
+  ci:
+    desc: "Run CI pipeline"
+    cmds:
+      - task: format
+      - task: lint
+      - task: typecheck
+      - task: test
+      - task: security
+
+  clean:
+    desc: "Clean artifacts"
+    cmds:
+      - find . -type d -name __pycache__ -exec rm -rf {} +
+      - find . -type d -name .pytest_cache -exec rm -rf {} +
+      - find . -type d -name .ruff_cache -exec rm -rf {} +
+
+  deps:
+    desc: "Sync dependencies"
+    cmds:
+      - uv sync
