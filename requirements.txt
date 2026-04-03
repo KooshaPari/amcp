@@ -312,7 +312,7 @@ qdrant-client==1.16.1
     # via smartcp
 realtime==2.25.0
     # via supabase
-redis==7.1.0
+redis==7.4.0
     # via smartcp
 referencing==0.37.0
     # via
